@@ -1,0 +1,31 @@
+/* Live slide deck (layouts/shortcodes/tour.html + assets/js/tour.js); loaded only on pages that use the shortcode. */
+.tour { margin: 1.6em 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--entry); outline: none; }
+.tour:focus-visible { box-shadow: 0 0 0 2px var(--primary); }
+.tour-slide { padding: 12px 16px 6px; min-height: 5.2em; }
+.post-content .tour-slide h3 { margin: 0 0 4px; font-size: 1.05em; }
+.post-content .tour-slide p { margin: 0 0 6px; font-size: .92em; line-height: 1.6; }
+.tour-viewport { position: relative; aspect-ratio: 1440 / 900; overflow: hidden; background: #f6f7f8; touch-action: none; border-top: 1px solid var(--border); }
+.tour-canvas { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; transform-origin: 0 0; }
+.post-content .tour-canvas iframe { display: block; width: 1440px; height: 900px; border: 0; background: #fff; margin: 0; }
+.post-content .tour-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; margin: 0; border-radius: 0; }
+.tour.ready .tour-cover { display: none; }
+.tour-glass { position: absolute; inset: 0; cursor: zoom-in; }
+.tour.zoomed .tour-glass { cursor: grab; }
+.tour.zoomed .tour-glass:active { cursor: grabbing; }
+.tour.free .tour-glass { display: none; }
+.tour-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 10px; border-top: 1px solid var(--border); font-size: 13px; color: var(--secondary); }
+.tour-bar button, .tour-bar a { min-width: 30px; height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--theme); color: var(--primary); font-size: 14px; line-height: 26px; text-align: center; cursor: pointer; box-shadow: none; text-decoration: none; }
+.tour-bar button:hover, .tour-bar a:hover { border-color: var(--secondary); }
+.tour-bar [data-act="free"][aria-pressed="true"] { background: var(--primary); color: var(--theme); }
+.tour-dots { display: inline-flex; gap: 5px; align-items: center; }
+.tour-bar .tour-dots button { min-width: 0; width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; background: var(--border); }
+.tour-bar .tour-dots button.active { background: var(--primary); }
+.tour-count, .tour-zoom { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: center; }
+.tour-gap { flex: 1; }
+.tour-hint { padding: 0 12px 8px; font-size: 12px; color: var(--secondary); }
+.tour:fullscreen { display: flex; flex-direction: column; border: 0; border-radius: 0; background: var(--theme); }
+.tour:fullscreen .tour-viewport { flex: 1; aspect-ratio: auto; min-height: 0; }
+.tour:fullscreen .tour-hint { display: none; }
+@media (max-width: 600px) { .tour-dots { display: none; } }
+.tour-slide[hidden] { display: none !important; }
+.post-content .tour-hint { margin: 0; text-align: left; font-weight: 400; font-size: 12px; }

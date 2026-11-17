@@ -1,0 +1,7 @@
+.post-content blockquote.gh-alert { border-inline-start: 4px solid var(--alert-c); padding: .6rem 1rem; }
+.post-content .gh-alert-title { font-weight: 600; color: var(--alert-c); margin-bottom: .3rem; }
+.gh-alert-note { --alert-c: #0969da; }
+.gh-alert-tip { --alert-c: #1a7f37; }
+.gh-alert-important { --alert-c: #8250df; }
+.gh-alert-warning { --alert-c: #9a6700; }
+.gh-alert-caution { --alert-c: #cf222e; }

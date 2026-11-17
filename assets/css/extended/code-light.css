@@ -1,0 +1,23 @@
+/* Light code blocks in light mode; dark mode keeps the theme default. */
+:root:not([data-theme="dark"]) {
+    --code-block-bg: #f6f8fa;
+}
+
+:root:not([data-theme="dark"]) .post-content pre,
+:root:not([data-theme="dark"]) .post-content pre code,
+:root:not([data-theme="dark"]) .post-content .highlight pre,
+:root:not([data-theme="dark"]) .post-content .chroma {
+    background: #f6f8fa !important;
+    color: #1f2328 !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .highlight,
+:root:not([data-theme="dark"]) .post-content > pre {
+    border: 1px solid #e5e7eb;
+    border-radius: var(--radius);
+}
+
+:root:not([data-theme="dark"]) .post-content .copy-code {
+    background: rgba(0, 0, 0, 0.06);
+    color: #57606a;
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系列总览</title>
+<!--
+  系列总览（系列层）：八集 × 阶段的进度矩阵、设定与大纲、资产库（每个资产用在哪些集、各集新增的资产）。
+  点矩阵里的格子进那一集对应的工作室；点集名进那一集的画布。单集作品没有这一页，直接进画布。
+  状态来自 js/store.js（和所有页面共用）。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/asset.css">
+<link rel="stylesheet" href="css/series.css">
+</head>
+<body>
+<div id="sr">
+  <header id="hdr"><nav id="stagebar" data-cur="series"></nav></header>
+  <main id="srMain"></main>
+</div>
+<div id="modal" hidden><div class="mcard"><div class="mh"><b id="mTitle"></b><button class="ib" id="mClose">✕</button></div><div id="mBody"></div></div></div>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/asset/art-char.js"></script>
+<script src="js/asset/art-prop.js"></script>
+<script src="js/asset/art-scene.js"></script>
+<script src="js/episode/frame.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script>if(STORE.single())location.replace('index.html')</script>
+<script src="js/stagebar.js"></script>
+<script src="js/series.js"></script>
+</body>
+</html>

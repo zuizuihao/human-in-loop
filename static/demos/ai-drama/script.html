@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>剧本工作室</title>
+<!--
+  剧本 Agent 的全屏页面（独立原型），用 ?e=EP01..EP08 选集。
+  左侧系列设定与八集大纲，中间剧本 / 节拍 / 检查 / 资产，右侧剧本 Agent（默认收起，需要人拍板时自动展开）。
+  系列、大纲、剧本都来自项目文件（project.yaml、outline.yaml、episodes/ep01/script.yaml）；台词只存在剧本里，分镜的声音从剧本推出来，改剧本会把对应段的分镜标为待更新。改写都是模拟的。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/asset.css">
+<link rel="stylesheet" href="css/script.css">
+</head>
+<body>
+<div id="sc">
+  <header id="hdr"><nav id="stagebar" data-cur="script"></nav></header>
+  <aside id="eps" data-side></aside>
+  <main id="main"><div class="pbar"><span class="chip" id="g1"></span><span class="chip" id="verChip"></span><span class="sp"></span><button class="btn sm" id="hExport">导出 script.md</button></div><div id="hero"></div><nav id="tabs"></nav><section id="view"></section></main>
+  <aside id="agent">
+    <div class="ah"><span class="aav" id="agentAv">✍️</span><div><b id="agentName">剧本 Agent</b><small>drama-script · 叠加 AI 漫剧 Skill</small></div><a class="ib" href="index.html" title="回到导演 Agent">🎬</a></div>
+    <div id="aCtx"></div>
+    <div id="aMsgs"></div>
+    <div id="aSugs"></div>
+    <div class="acomp">
+      <textarea id="aIn" rows="2" placeholder="点选一条剧本，说要怎么改"></textarea>
+      <div class="arow"><span class="sp"></span><button class="send" id="aSend">➤</button></div>
+    </div>
+  </aside>
+</div>
+<div id="modal" hidden><div class="mcard"><div class="mh"><b id="mTitle"></b><button class="ib" id="mClose">✕</button></div><div id="mBody"></div></div></div>
+<div id="toast"></div>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/asset/art-char.js"></script>
+<script src="js/asset/art-prop.js"></script>
+<script src="js/asset/art-scene.js"></script>
+<script src="js/episode/frame.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script src="js/stagebar.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/script/studio.js"></script>
+<script src="js/script/agent.js"></script>
+</body>
+</html>

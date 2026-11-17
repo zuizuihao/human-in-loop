@@ -1,0 +1,95 @@
+baseURL: https://zuizuihao.github.io/
+title: Sam Peng
+theme: PaperMod
+
+defaultContentLanguage: zh
+defaultContentLanguageInSubdir: false   # 中文在 /，英文在 /en/
+hasCJKLanguage: true                    # 中文字数/阅读时长统计正确
+
+enableRobotsTXT: true
+enableGitInfo: false                    # 需要时可开启，用 git 提交时间作为“更新于”
+buildDrafts: false
+disableKinds: [taxonomy]             # 不生成 /tags/ 总览页，单个标签页保留
+pagination:
+  pagerSize: 10
+
+outputs:
+  home: [HTML, RSS]
+
+markup:
+  highlight:
+    noClasses: false
+    lineNos: false
+  goldmark:
+    renderer:
+      unsafe: true
+    # 让标准 Markdown 的相对链接/图片（如 ../other/index.md、./img.png）在网站上正确解析
+    renderHooks:
+      image:
+        useEmbedded: fallback
+      link:
+        useEmbedded: fallback
+
+params:
+  env: production
+  author: Sam Peng
+  defaultTheme: auto
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: true
+  ShowWordCount: true
+  ShowToc: true
+  TocOpen: false
+  ShowRssButtonInSectionTermList: true
+  displayFullLangName: true
+  editPost:
+    URL: https://github.com/zuizuihao/zuizuihao.github.io/edit/main/content
+    Text: Edit
+    appendFilePath: true
+  socialIcons:
+    - name: github
+      url: https://github.com/zuizuihao
+    - name: rss
+      url: index.xml
+
+languages:
+  zh:
+    label: 中文
+    locale: zh-CN
+    contentDir: content/zh
+    weight: 1
+    title: 用 AI 武装大脑
+    params:
+      description: 把 AI 用进实际业务的设计与取舍：Agent、文档处理、知识库与云上架构。
+      homeInfoParams:
+        Title: 你好，我是 Sam 👋
+        Content: 深圳的软件工程师。这里记录把 AI 用进实际业务时的设计与取舍：Agent、文档处理、知识库，也写一些 AWS 上的架构。
+      editPost:
+        URL: https://github.com/zuizuihao/zuizuihao.github.io/edit/main/content/zh
+        Text: 编辑此页
+        appendFilePath: true
+    menus:
+      main:
+        - { name: 文章, url: posts/, weight: 1 }
+        - { name: 关于, url: about/, weight: 5 }
+  en:
+    label: English
+    locale: en-US
+    contentDir: content/en
+    weight: 2
+    title: Human in the Loop
+    params:
+      description: Design notes on putting AI into real business workflows — agents, document processing, knowledge bases and cloud architecture.
+      homeInfoParams:
+        Title: Hi, I'm Sam 👋
+        Content: Software engineer based in Shenzhen. Notes on putting AI into real business workflows — agents, document processing and knowledge bases, plus some architecture on AWS.
+      editPost:
+        URL: https://github.com/zuizuihao/zuizuihao.github.io/edit/main/content/en
+        Text: Edit this page
+        appendFilePath: true
+    menus:
+      main:
+        - { name: Posts, url: posts/, weight: 1 }
+        - { name: About, url: about/, weight: 5 }

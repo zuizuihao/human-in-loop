@@ -1,0 +1,103 @@
+/* One page width for every page, taken from the home page.
+   Header, main and footer share it so the left edge lines up everywhere. */
+:root {
+    --main-width: 1080px;
+    --nav-width: 1080px;
+    --prose-width: 760px;
+}
+
+/* ---------- Single pages (posts, about): readable column + side TOC ---------- */
+.post-single > * {
+    max-width: var(--prose-width);
+}
+
+.post-single .post-header {
+    margin-inline: 0;
+}
+
+@media (min-width: 1100px) {
+    .post-single:has(> .toc) {
+        display: grid;
+        grid-template-columns: minmax(0, var(--prose-width)) 240px;
+        justify-content: space-between;
+        column-gap: 48px;
+    }
+
+    .post-single:has(> .toc) > * {
+        grid-column: 1;
+    }
+
+    /* grid items don't collapse margins; keep the header-to-body gap as before */
+    .post-single:has(> .toc) > .post-content {
+        margin-top: 0;
+    }
+
+    .post-single > .toc {
+        grid-column: 2;
+        grid-row: 1 / span 20;
+        align-self: start;
+        position: sticky;
+        top: 24px;
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+        margin: 24px 0 0;
+        font-size: 14px;
+        background: none;
+        border: none;
+        border-inline-start: 1px solid var(--border);
+        border-radius: 0;
+    }
+
+    [data-theme="dark"] .post-single > .toc {
+        background: none;
+    }
+
+    .post-single > .toc summary {
+        list-style: none;
+        pointer-events: none;
+        padding: 0 0 8px 16px;
+        font-size: 13px;
+        color: var(--secondary);
+    }
+
+    .post-single > .toc summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .post-single > .toc .inner {
+        margin: 0;
+        padding: 0 0 0 16px;
+    }
+
+    .post-single > .toc ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .post-single > .toc li {
+        margin: 6px 0;
+        line-height: 1.5;
+    }
+
+    .post-single > .toc li ul {
+        margin-inline-start: 12px;
+    }
+
+    .post-single > .toc a {
+        color: var(--secondary);
+    }
+
+    .post-single > .toc a:hover {
+        color: var(--primary);
+    }
+}
+
+/* ---------- Term pages (single tag): same header + cards as the archive/home ---------- */
+.term-index .home-list {
+    margin-top: 8px;
+}
+
+.term-index .posts-index__header .breadcrumbs {
+    flex-basis: 100%;
+}

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 430" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',system-ui,-apple-system,'Segoe UI',sans-serif" font-size="13" fill="#1f2328">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9" fill="none" stroke="#9aa1a9" stroke-width="1.6"/></marker></defs>
+<rect width="1160" height="430" rx="16" fill="#fff" stroke="#e2e5e9"/>
+<rect x="32" y="26" width="12" height="12" rx="3" fill="#f3f0fd" stroke="#6e56cf"/><text x="50" y="37" font-size="12" fill="#6e7781">Model</text>
+<rect x="102" y="26" width="12" height="12" rx="3" fill="#fff" stroke="#1f2328"/><text x="120" y="37" font-size="12" fill="#6e7781">Code</text>
+<rect x="24" y="140" width="112" height="130" rx="12" fill="#fafbfc" stroke="#e2e5e9"/>
+<rect x="52" y="162" width="56" height="38" rx="5" fill="#fff" stroke="#9aa1a9" stroke-width="1.4"/><path d="M52,164 L80,184 L108,164" fill="none" stroke="#9aa1a9" stroke-width="1.4"/>
+<text x="80" y="226" text-anchor="middle" font-weight="600" font-size="14">Message</text>
+<text x="80" y="246" text-anchor="middle" font-size="11.5" fill="#6e7781">Email, form,</text>
+<text x="80" y="262" text-anchor="middle" font-size="11.5" fill="#6e7781">marketplace</text>
+<line x1="140" y1="205" x2="166" y2="205" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="170" y="70" width="185" height="270" rx="12" fill="#fff" stroke="#6e56cf" stroke-width="1.5"/>
+<circle cx="194" cy="98" r="10" fill="#6e56cf"/><text x="194" y="102.5" text-anchor="middle" font-size="11.5" fill="#fff" font-weight="600">1</text>
+<text x="212" y="103" font-size="15" font-weight="600">Classify</text>
+<rect x="291.5" y="88" width="49.5" height="20" rx="5" fill="#f3f0fd" stroke="#6e56cf" stroke-width="1"/><text x="316.25" y="102" text-anchor="middle" font-size="11.5" fill="#6e56cf">Model</text>
+<line x1="184" y1="122" x2="341" y2="122" stroke="#e2e5e9"/>
+<text x="262.5" y="322" text-anchor="middle" font-size="12" fill="#6e7781">Fields only, no email</text>
+<text x="192" y="155" font-size="12" fill="#6e7781">Scenario</text>
+<rect x="262" y="145" width="64" height="12" rx="6" fill="#eceef1"/>
+<text x="192" y="185" font-size="12" fill="#6e7781">Language</text>
+<rect x="262" y="175" width="40" height="12" rx="6" fill="#eceef1"/>
+<text x="192" y="215" font-size="12" fill="#6e7781">Name</text>
+<rect x="262" y="205" width="56" height="12" rx="6" fill="#eceef1"/>
+<text x="192" y="245" font-size="12" fill="#6e7781">Subject</text>
+<rect x="262" y="235" width="70" height="12" rx="6" fill="#eceef1"/>
+<text x="192" y="275" font-size="12" fill="#6e7781">Questions</text>
+<rect x="262" y="265" width="48" height="12" rx="6" fill="#eceef1"/>
+<line x1="358" y1="205" x2="386" y2="205" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="390" y="70" width="185" height="270" rx="12" fill="#fff" stroke="#1f2328" stroke-width="1.5"/>
+<circle cx="414" cy="98" r="10" fill="#1f2328"/><text x="414" y="102.5" text-anchor="middle" font-size="11.5" fill="#fff" font-weight="600">2</text>
+<text x="432" y="103" font-size="15" font-weight="600">Route</text>
+<rect x="519.0" y="88" width="42.0" height="20" rx="5" fill="#f3f4f6" stroke="#1f2328" stroke-width="1"/><text x="540.0" y="102" text-anchor="middle" font-size="11.5" fill="#1f2328">Code</text>
+<line x1="404" y1="122" x2="561" y2="122" stroke="#e2e5e9"/>
+<text x="482.5" y="322" text-anchor="middle" font-size="12" fill="#6e7781">One template by priority</text>
+<text x="412" y="155" font-size="11" fill="#a0a7b0" font-family="ui-monospace,Consolas,monospace">P0</text>
+<rect x="442" y="142" width="50" height="18" rx="5" fill="#1f2328" stroke="#1f2328"/>
+<rect x="500" y="142" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<text x="467" y="155" text-anchor="middle" font-size="11" fill="#fff">✓</text>
+<text x="412" y="185" font-size="11" fill="#a0a7b0" font-family="ui-monospace,Consolas,monospace">P1</text>
+<rect x="442" y="172" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<text x="412" y="215" font-size="11" fill="#a0a7b0" font-family="ui-monospace,Consolas,monospace">P2</text>
+<rect x="442" y="202" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<rect x="500" y="202" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<text x="412" y="245" font-size="11" fill="#a0a7b0" font-family="ui-monospace,Consolas,monospace">P3</text>
+<rect x="442" y="232" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<rect x="500" y="232" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<text x="412" y="275" font-size="11" fill="#a0a7b0" font-family="ui-monospace,Consolas,monospace">P4</text>
+<rect x="442" y="262" width="50" height="18" rx="5" fill="#fff" stroke="#9aa1a9" stroke-dasharray="3 3"/>
+<rect x="500" y="262" width="50" height="18" rx="5" fill="#fff" stroke="#e2e5e9"/>
+<line x1="578" y1="205" x2="606" y2="205" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="610" y="70" width="185" height="270" rx="12" fill="#fff" stroke="#6e56cf" stroke-width="1.5"/>
+<circle cx="634" cy="98" r="10" fill="#6e56cf"/><text x="634" y="102.5" text-anchor="middle" font-size="11.5" fill="#fff" font-weight="600">3</text>
+<text x="652" y="103" font-size="15" font-weight="600">Fill</text>
+<rect x="731.5" y="88" width="49.5" height="20" rx="5" fill="#f3f0fd" stroke="#6e56cf" stroke-width="1"/><text x="756.25" y="102" text-anchor="middle" font-size="11.5" fill="#6e56cf">Model</text>
+<line x1="624" y1="122" x2="781" y2="122" stroke="#e2e5e9"/>
+<text x="702.5" y="322" text-anchor="middle" font-size="12" fill="#6e7781">Fill blanks, nothing else</text>
+<rect x="632" y="142" width="24" height="12" rx="6" fill="#eceef1"/><rect x="662" y="139" width="66" height="18" rx="4" fill="#f3f0fd" stroke="#d9d0fb"/>
+<rect x="632" y="166" width="150" height="12" rx="6" fill="#eceef1"/>
+<rect x="632" y="190" width="60" height="12" rx="6" fill="#eceef1"/><rect x="698" y="187" width="58" height="18" rx="4" fill="#f3f0fd" stroke="#d9d0fb"/>
+<rect x="632" y="214" width="140" height="12" rx="6" fill="#eceef1"/>
+<rect x="632" y="238" width="54" height="12" rx="6" fill="#eceef1"/><rect x="692" y="234" width="34" height="20" rx="3" fill="#fff5d6"/><line x1="692" y1="254" x2="726" y2="254" stroke="#eac54f" stroke-width="1.5"/><text x="709" y="248" text-anchor="middle" font-size="11" fill="#9a6700" font-weight="600">[X]</text><rect x="732" y="238" width="38" height="12" rx="6" fill="#eceef1"/>
+<rect x="632" y="262" width="110" height="12" rx="6" fill="#eceef1"/>
+<line x1="798" y1="205" x2="826" y2="205" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="830" y="70" width="185" height="270" rx="12" fill="#fff" stroke="#1f2328" stroke-width="1.5"/>
+<circle cx="854" cy="98" r="10" fill="#1f2328"/><text x="854" y="102.5" text-anchor="middle" font-size="11.5" fill="#fff" font-weight="600">4</text>
+<text x="872" y="103" font-size="15" font-weight="600">Check</text>
+<rect x="959.0" y="88" width="42.0" height="20" rx="5" fill="#f3f4f6" stroke="#1f2328" stroke-width="1"/><text x="980.0" y="102" text-anchor="middle" font-size="11.5" fill="#1f2328">Code</text>
+<line x1="844" y1="122" x2="1001" y2="122" stroke="#e2e5e9"/>
+<text x="922.5" y="322" text-anchor="middle" font-size="12" fill="#6e7781">Red items block sending</text>
+<text x="854" y="155" font-size="13" font-weight="700" fill="#1a7f4b">✓</text>
+<text x="874" y="155" font-size="12.5">Blanks</text>
+<text x="854" y="189" font-size="13" font-weight="700" fill="#1a7f4b">✓</text>
+<text x="874" y="189" font-size="12.5">Checklist</text>
+<text x="854" y="223" font-size="13" font-weight="700" fill="#1a7f4b">✓</text>
+<text x="874" y="223" font-size="12.5">Phone &amp; links</text>
+<text x="854" y="257" font-size="13" font-weight="700" fill="#9a6700">!</text>
+<text x="874" y="257" font-size="12.5">Prices &amp; promises</text>
+<line x1="1018" y1="205" x2="1044" y2="205" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="1048" y="140" width="88" height="130" rx="12" fill="#1f2328"/>
+<circle cx="1092" cy="176" r="12" fill="none" stroke="#fff" stroke-width="1.5"/><path d="M1072,210 q20,-22 40,0" fill="none" stroke="#fff" stroke-width="1.5"/>
+<text x="1092" y="234" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Staff</text>
+<text x="1092" y="252" text-anchor="middle" font-size="10" fill="#c9ced4">review &amp; send</text>
+<path d="M482.5,362 v10 H702.5 v-10" fill="none" stroke="#6e7781" stroke-width="1.2" stroke-dasharray="4 3"/>
+<text x="592.5" y="392" text-anchor="middle" font-size="12.5" fill="#6e7781">Only this one template reaches the model</text>
+</svg>

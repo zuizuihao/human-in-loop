@@ -1,0 +1,5 @@
+home_latest: Latest posts
+home_all_posts: View all posts
+home_topics: Frequent topics
+home_stats: "{{ .posts }} posts · {{ .tags }} tags"
+home_stats_posts: "{{ .posts }} posts"

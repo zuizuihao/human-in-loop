@@ -1,0 +1,10 @@
+<script>
+  (function () {
+    var toc = document.querySelector('.post-single > .toc');
+    if (!toc) return;
+    var wide = window.matchMedia('(min-width: 1100px)');
+    var sync = function () { if (wide.matches) toc.open = true; };
+    sync();
+    wide.addEventListener('change', sync);
+  })();
+</script>

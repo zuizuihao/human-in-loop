@@ -1,0 +1,55 @@
+{{- define "main" }}
+{{- $pages := .RegularPages.ByDate.Reverse }}
+{{- $paginator := .Paginate $pages }}
+<div class="posts-index">
+  <header class="posts-index__header">
+    <h1>{{ .Title }}</h1>
+    <p class="posts-index__stats">{{ i18n "home_stats" (dict "posts" (len $pages) "tags" (len site.Taxonomies.tags)) }}</p>
+    <p class="posts-index__description">{{ .Description }}</p>
+  </header>
+
+  {{- with site.Taxonomies.tags }}
+  <nav class="home-topics" aria-label="{{ i18n "home_topics" }}">
+    {{- range first 8 .ByCount }}
+    <a class="home-chip" href="{{ .Page.RelPermalink }}">{{ .Page.Title }}<span>{{ .Count }}</span></a>
+    {{- end }}
+  </nav>
+  {{- end }}
+
+  {{- range $paginator.Pages.GroupByDate "2006" }}
+  <section class="posts-year" aria-labelledby="posts-year-{{ .Key }}">
+    <h2 id="posts-year-{{ .Key }}">{{ .Key }}</h2>
+    <div class="posts-year__entries">
+      {{- range .Pages }}
+      <article class="posts-row">
+        <time class="posts-row__date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "01.02" }}</time>
+        <div class="posts-row__body">
+          <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+          {{- with .Description }}
+          <p class="posts-row__description">{{ . | plainify }}</p>
+          {{- end }}
+          {{- with .GetTerms "tags" }}
+          <ul class="posts-row__tags">
+            {{- range first 3 . }}
+            <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
+            {{- end }}
+          </ul>
+          {{- end }}
+        </div>
+        <span class="posts-row__arrow" aria-hidden="true">&nearr;</span>
+      </article>
+      {{- end }}
+    </div>
+  </section>
+  {{- end }}
+
+  {{- if gt $paginator.TotalPages 1 }}
+  <footer class="page-footer">
+    <nav class="pagination">
+      {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | absURL }}">&laquo;&nbsp;{{ i18n "prev_page" }}</a>{{- end }}
+      {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | absURL }}">{{ i18n "next_page" }}&nbsp;&raquo;</a>{{- end }}
+    </nav>
+  </footer>
+  {{- end }}
+</div>
+{{- end }}

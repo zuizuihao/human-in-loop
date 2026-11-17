@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 600" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',system-ui,sans-serif" font-size="13" fill="#1f2328">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,1 L9,5 L0,9" fill="none" stroke="#9aa1a9" stroke-width="1.6"/></marker></defs>
+<rect width="1160" height="600" rx="16" fill="#fff" stroke="#e2e5e9"/>
+<rect x="20" y="20" width="1120" height="92" rx="10" fill="#f8fafc" stroke="#eef0f3"/>
+<rect x="20" y="20" width="4" height="92" rx="2" fill="#9aa1a9"/>
+<text x="44" y="71.0" font-size="14" font-weight="600" fill="#9aa1a9">你提供</text>
+<rect x="20" y="116" width="1120" height="214" rx="10" fill="#fff" stroke="#eef0f3"/>
+<rect x="20" y="116" width="4" height="214" rx="2" fill="#6e56cf"/>
+<text x="44" y="228.0" font-size="14" font-weight="600" fill="#6e56cf">AI 抽取</text>
+<rect x="20" y="334" width="1120" height="148" rx="10" fill="#f8fafc" stroke="#eef0f3"/>
+<rect x="20" y="334" width="4" height="148" rx="2" fill="#1f2328"/>
+<text x="44" y="413.0" font-size="14" font-weight="600" fill="#1f2328">代码</text>
+<rect x="20" y="486" width="1120" height="92" rx="10" fill="#fff" stroke="#eef0f3"/>
+<rect x="20" y="486" width="4" height="92" rx="2" fill="#1a7f4b"/>
+<text x="44" y="537.0" font-size="14" font-weight="600" fill="#1a7f4b">你确认</text>
+<rect x="180" y="46" width="96" height="40" rx="8" fill="#fff" stroke="#cfd4da"/><text x="228.0" y="71" text-anchor="middle">证件照片</text>
+<rect x="292" y="46" width="96" height="40" rx="8" fill="#fff" stroke="#cfd4da"/><text x="340.0" y="71" text-anchor="middle">权属证明</text>
+<rect x="404" y="46" width="96" height="40" rx="8" fill="#fff" stroke="#cfd4da"/><text x="452.0" y="71" text-anchor="middle">报价单</text>
+<rect x="516" y="46" width="96" height="40" rx="8" fill="#fff" stroke="#cfd4da"/><text x="564.0" y="71" text-anchor="middle">聊天截图</text>
+<rect x="628" y="46" width="111" height="40" rx="8" fill="#fff" stroke="#cfd4da"/><text x="683.5" y="71" text-anchor="middle">一句话描述</text>
+<line x1="580" y1="96" x2="580" y2="126" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="180" y="134" width="670" height="166" rx="8" fill="#fff" stroke="#e2e5e9"/>
+<text x="194" y="156" font-size="12" fill="#6e7781">字段</text>
+<text x="344" y="156" font-size="12" fill="#6e7781">值</text>
+<text x="534" y="156" font-size="12" fill="#6e7781">出处</text>
+<line x1="180" y1="168" x2="850" y2="168" stroke="#eef0f3"/>
+<text x="194" y="195">月租金</text>
+<rect x="338" y="178" width="53.6" height="24" rx="4" fill="#f3f0fd" stroke="#6e56cf" stroke-width="1"/><text x="364.8" y="195" text-anchor="middle" fill="#4b3a9e" font-weight="500">6800</text>
+<text x="534" y="195" fill="#6e7781">聊天截图「月租6800」</text>
+<line x1="180" y1="212" x2="850" y2="212" stroke="#f3f4f6"/>
+<text x="194" y="239">起租日</text>
+<rect x="338" y="222" width="150.0" height="24" rx="4" fill="#fdf0f0" stroke="#c62828" stroke-width="1"/><text x="413.0" y="239" text-anchor="middle" fill="#c62828" font-weight="500">12月1日 / 12月15日</text>
+<text x="534" y="239" fill="#c62828">两处说法不一，交给你选</text>
+<line x1="180" y1="256" x2="850" y2="256" stroke="#f3f4f6"/>
+<text x="194" y="283">银行账号</text>
+<rect x="338" y="266" width="60" height="24" rx="4" fill="#fff5d6" stroke="#eac54f" stroke-width="1"/><text x="368.0" y="283" text-anchor="middle" fill="#9a6700" font-weight="500">—</text>
+<text x="534" y="283" fill="#9a6700">没提到，留空并追问</text>
+<text x="878" y="220" font-size="12.5" fill="#6e7781">只输出字段和原文出处，不写合同</text>
+<text x="878" y="240" font-size="12.5" fill="#6e7781"></text>
+<line x1="580" y1="314" x2="580" y2="342" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="180" y="348" width="400" height="120" rx="10" fill="#fff" stroke="#1f2328" stroke-width="1.3"/>
+<text x="198" y="376" font-size="14.5" font-weight="600">套用范本</text>
+<circle cx="204" cy="398" r="2.5" fill="#9aa1a9"/><text x="216" y="403" fill="#3d444d">条款原文不动</text>
+<circle cx="204" cy="422" r="2.5" fill="#9aa1a9"/><text x="216" y="427" fill="#3d444d">大写金额、比例由代码算</text>
+<circle cx="204" cy="446" r="2.5" fill="#9aa1a9"/><text x="216" y="451" fill="#3d444d">不适用处填“/”或“无”</text>
+<rect x="620" y="348" width="400" height="120" rx="10" fill="#fff" stroke="#1f2328" stroke-width="1.3"/>
+<text x="638" y="376" font-size="14.5" font-weight="600">检查</text>
+<circle cx="644" cy="398" r="2.5" fill="#9aa1a9"/><text x="656" y="403" fill="#3d444d">空白、□ 选项、前后一致</text>
+<circle cx="644" cy="422" r="2.5" fill="#9aa1a9"/><text x="656" y="427" fill="#3d444d">证件号、VIN 校验位</text>
+<circle cx="644" cy="446" r="2.5" fill="#9aa1a9"/><text x="656" y="451" fill="#3d444d">范本使用说明与相关法规</text>
+<line x1="582" y1="408" x2="614" y2="408" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<line x1="580" y1="472" x2="580" y2="496" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="180" y="510" width="200" height="40" rx="20" fill="#fff" stroke="#1a7f4b"/><text x="280.0" y="535" text-anchor="middle" fill="#1a7f4b" font-weight="500">补齐空白</text>
+<line x1="384" y1="530" x2="402" y2="530" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="406" y="510" width="200" height="40" rx="20" fill="#fff" stroke="#1a7f4b"/><text x="506.0" y="535" text-anchor="middle" fill="#1a7f4b" font-weight="500">选定矛盾</text>
+<line x1="610" y1="530" x2="628" y2="530" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="632" y="510" width="200" height="40" rx="20" fill="#fff" stroke="#1a7f4b"/><text x="732.0" y="535" text-anchor="middle" fill="#1a7f4b" font-weight="500">看检查结果</text>
+<line x1="836" y1="530" x2="854" y2="530" stroke="#9aa1a9" stroke-width="1.6" marker-end="url(#ar)"/>
+<rect x="858" y="510" width="200" height="40" rx="20" fill="#1a7f4b" stroke="#1a7f4b"/><text x="958.0" y="535" text-anchor="middle" fill="#fff" font-weight="600">生成合同</text>
+</svg>

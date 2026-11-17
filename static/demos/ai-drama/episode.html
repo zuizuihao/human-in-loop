@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分镜 · 故事板 · 视频工作室</title>
+<!--
+  分镜 / 故事板 / 视频 Agent 的全屏页面（独立原型），用 ?m=shot|board|video 切换模式。
+  以时间轴为核心：左侧镜头检查器、中间监视器（画幅按项目设置）、底部多轨时间线（段落 / 镜头 / 声音 / 出镜资产 / 问题），右侧当前模式的 Agent。
+  镜头数据来自项目文件 episodes/ep01/storyboard.yaml；有真实故事板和样片（media.yaml）的段直接显示，其余用资产工作室的 SVG 占位拼出来；生成都是模拟的。不做后期：声音直出，不加字幕和配乐。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/asset.css">
+<link rel="stylesheet" href="css/episode.css">
+</head>
+<body>
+<div id="ep">
+  <header id="hdr"><nav id="stagebar" data-cur="shot"></nav></header>
+  <aside id="insp"></aside>
+  <main id="mon"></main>
+  <aside id="agent">
+    <div class="ah"><span class="aav" id="agentAv"></span><div><b id="agentName"></b><small id="agentSkill"></small></div><a class="ib" href="index.html" title="回到导演 Agent">🎬</a></div>
+    <div id="aCtx"></div>
+    <div id="aMsgs"></div>
+    <div id="aSugs"></div>
+    <div class="acomp">
+      <textarea id="aIn" rows="2" placeholder="对当前镜头或段落说要改什么"></textarea>
+      <div class="arow"><span class="sp"></span><button class="send" id="aSend">➤</button></div>
+    </div>
+  </aside>
+  <section id="tl"></section>
+</div>
+<div id="modal" hidden><div class="mcard"><div class="mh"><b id="mTitle"></b><button class="ib" id="mClose">✕</button></div><div id="mBody"></div></div></div>
+<div id="toast"></div>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/asset/art-char.js"></script>
+<script src="js/asset/art-prop.js"></script>
+<script src="js/asset/art-scene.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script src="js/stagebar.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/episode/frame.js"></script>
+<script src="js/episode/studio.js"></script>
+<script src="js/episode/agent.js"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+{{- /*
+  Live slide deck that drives an embedded prototype (Marp-style authoring).
+
+  {{< tour src="/demos/agent-assist/" cover="cover.webp" >}}
+  ### Slide title
+  Markdown text for the slide.
+  <!-- step: layout -->
+  ---
+  ### Next slide
+  <!-- step: citations -->
+  {{< /tour >}}
+
+  Slides are separated by a line containing only `---`. `step` is sent to the
+  iframe via postMessage ({tour: 'step', id}); the prototype answers {tour: 'ready'}
+  once loaded. `cover` is a page resource shown before the iframe loads and when
+  JavaScript is unavailable.
+*/ -}}
+{{- $lang := .Page.Language.Lang -}}
+{{- $src := .Get "src" | default "/demos/agent-assist/" -}}
+{{- $url := printf "%s?tour=1%s" $src (cond (eq $lang "en") "&lang=en" "") | relURL -}}
+{{- $free := printf "%s%s" $src (cond (eq $lang "en") "?lang=en" "") | relURL -}}
+{{- $t := dict
+  "prev" "上一页" "next" "下一页" "zoomIn" "放大" "zoomOut" "缩小" "reset" "重置缩放"
+  "free" "自由操作" "full" "全屏" "open" "新窗口打开" "slide" "幻灯片" "cover" "原型截图"
+  "hint" "双击或 ＋／－ 缩放，拖动平移；全屏时可用滚轮缩放。点「自由操作」可直接点击原型。"
+-}}
+{{- if eq $lang "en" -}}
+{{- $t = dict
+  "prev" "Previous" "next" "Next" "zoomIn" "Zoom in" "zoomOut" "Zoom out" "reset" "Reset zoom"
+  "free" "Interact" "full" "Fullscreen" "open" "Open in new tab" "slide" "Slide" "cover" "Prototype screenshot"
+  "hint" "Double-click or use ＋/－ to zoom, drag to pan; scroll to zoom in fullscreen. Use “Interact” to click around the prototype."
+-}}
+{{- end -}}
+{{- $cover := "" -}}
+{{- with .Get "cover" }}{{ with $.Page.Resources.Get . }}{{ $cover = .RelPermalink }}{{ end }}{{ end -}}
+{{- $slides := split (trim .Inner "\n ") "\n---\n" -}}
+<figure class="tour" data-src="{{ $url }}" tabindex="0" aria-roledescription="carousel">
+  <div class="tour-slides">
+  {{- range $i, $raw := $slides }}
+    {{- $m := findRESubmatch `<!--\s*step:\s*([\w-]+)\s*-->` $raw 1 -}}
+    {{- $step := "" -}}{{- with $m }}{{ $step = index (index . 0) 1 }}{{ end -}}
+    {{- $body := replaceRE `<!--\s*step:[^>]*-->` "" $raw }}
+    <section class="tour-slide" data-step="{{ $step }}" aria-label="{{ $t.slide }} {{ add $i 1 }}"{{ if $i }} hidden{{ end }}>
+      {{ $.Page.RenderString (dict "display" "block") $body }}
+    </section>
+  {{- end }}
+  </div>
+  <div class="tour-viewport">
+    <div class="tour-canvas"><iframe title="{{ $t.cover }}" tabindex="-1"></iframe></div>
+    {{- with $cover }}<img class="tour-cover" src="{{ . }}" alt="{{ $t.cover }}" loading="lazy">{{ end }}
+    <div class="tour-glass"></div>
+  </div>
+  <div class="tour-bar">
+    <button type="button" data-act="prev" title="{{ $t.prev }} (←)" aria-label="{{ $t.prev }}">‹</button>
+    <span class="tour-dots"></span>
+    <button type="button" data-act="next" title="{{ $t.next }} (→)" aria-label="{{ $t.next }}">›</button>
+    <span class="tour-count"></span>
+    <span class="tour-gap"></span>
+    <button type="button" data-act="out" title="{{ $t.zoomOut }} (−)" aria-label="{{ $t.zoomOut }}">−</button>
+    <span class="tour-zoom">100%</span>
+    <button type="button" data-act="in" title="{{ $t.zoomIn }} (+)" aria-label="{{ $t.zoomIn }}">＋</button>
+    <button type="button" data-act="reset" title="{{ $t.reset }} (0)">⟲</button>
+    <button type="button" data-act="free" aria-pressed="false">{{ $t.free }}</button>
+    <button type="button" data-act="full" title="{{ $t.full }} (F)">⛶</button>
+    <a href="{{ $free }}" target="_blank" rel="noopener" title="{{ $t.open }}">↗</a>
+  </div>
+  <figcaption class="tour-hint">{{ $t.hint }}</figcaption>
+</figure>
+{{- $css := resources.Get "css/tour.css" | minify | fingerprint }}
+{{- $js := resources.Get "js/tour.js" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+<script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>

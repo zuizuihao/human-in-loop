@@ -1,0 +1,68 @@
+/* 子 Agent 的预览层 */
+.pane2{display:flex;gap:2px;margin:8px 12px 0;padding:3px;background:var(--panel2);border-radius:10px}
+.pane2 button{flex:1;padding:5px 0;border-radius:8px;font-size:12px;color:var(--mute)}
+.pane2 button.on{background:#fff;color:var(--text);font-weight:600;box-shadow:0 1px 3px #1d212914}
+/* 范围条：这个 Agent 负责的全部节点，点选加入/移出预览 */
+.wscope{display:flex;flex-wrap:wrap;gap:4px;align-items:center;position:sticky;top:-12px;background:#fff;padding:4px 0 8px;z-index:2}
+.wscope>span{font-size:11px;color:var(--mute);margin-right:2px}
+.wscope button{padding:2px 9px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:#4e5969}
+.wscope button.on{border-color:var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:600}
+.wscope button.all{border-style:dashed;color:var(--mute)}
+.wscope button.all.on{border-style:solid}
+/* 没选时的总览 */
+.wgal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wg{cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:6px;transition:.15s}
+.wg:hover{border-color:var(--acc)}
+.wg i{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.1;border-radius:8px;background:var(--panel2) center/cover;font-style:normal;font-size:20px}
+.wg b{display:block;font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wg small{color:var(--mute);font-size:11px}
+/* 选中对象的卡片 */
+.wcard{border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff}
+.wh{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.wh .ico{width:24px;height:24px;border-radius:8px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:13px}
+.wh b{font-size:14px}
+.wh .st{font-size:11px;padding:0 7px;border-radius:999px;background:var(--panel2);color:var(--mute)}
+.wh .st.done{background:#e1f8f1;color:var(--ok)}.wh .st.stale{background:#ffecee;color:var(--err)}.wh .st.running{background:#fff4e0;color:var(--warn)}
+.vers{margin-left:auto;display:flex;gap:2px}
+.vers button{font-size:11px;padding:1px 7px;border-radius:7px;color:var(--mute);border:1px solid transparent}
+.vers button.cur{color:#7a5cff}
+.vers button.on{border-color:var(--acc);color:var(--acc);background:var(--acc-soft);font-weight:600}
+.wx{color:var(--mute);font-size:12px;padding:0 4px}
+.wban{display:flex;align-items:center;gap:8px;font-size:12px;color:#b45309;background:#fff7ed;border-radius:8px;padding:5px 8px;margin-bottom:8px}
+.wban .btn{margin-left:auto}
+.wnote{font-size:12px;color:#7a5cff;background:#f7f4ff;border-radius:8px;padding:4px 8px;margin-bottom:8px}
+.wgrid{display:grid;gap:6px}.wgrid.c2{grid-template-columns:1fr 1fr}.wgrid.c1{grid-template-columns:1fr}
+.wt{position:relative;cursor:zoom-in}
+.wt i{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1.05;border-radius:10px;background:var(--panel2) center/cover;font-style:normal;font-size:11px;color:#b4b9c5}
+.wt span{position:absolute;left:6px;bottom:6px;font-size:11px;background:#ffffffd8;border-radius:6px;padding:0 6px}
+.wt span:empty{display:none}
+.wt .rr{position:absolute;right:6px;top:6px;width:24px;height:24px;border-radius:7px;background:#ffffffe0;font-size:13px;opacity:0;transition:.15s}
+.wt:hover .rr{opacity:1}
+.wt .rr:hover{background:var(--acc);color:#fff}
+.wtext{white-space:pre-wrap;font-size:13px;color:#4e5969;background:#fafbfc;border-radius:10px;padding:10px}
+.shotlist.big div{grid-template-columns:40px 84px 1fr;font-size:12px;padding:5px 8px}
+.shotlist.big em{white-space:normal}
+.wvid{aspect-ratio:16/9;border-radius:10px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:28px;color:#1d2129a0;cursor:pointer}
+.wvid span{font-size:11px;margin-top:4px}
+.wlines{margin-top:6px;font-size:12px;color:#4e5969}
+.wlines div{padding:2px 0}.wlines b{display:inline-block;width:40px;color:var(--text)}
+.wsec{margin-top:10px}
+.wsec>em{display:block;font-style:normal;font-size:11px;color:var(--mute);margin-bottom:3px}
+.wsec textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:6px 8px;font:inherit;font-size:12px;resize:vertical;outline:none}
+.wsec textarea:focus{border-color:var(--acc)}
+.wrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.wchk{list-style:none;font-size:12px;color:#4e5969}
+/* 并排对比 */
+.wcmp{display:grid;gap:6px;align-items:center}
+.wcmp>b{font-size:11px;color:var(--mute);text-align:center}
+.wcmp .cn{font-size:12px;font-weight:600}.wcmp .cn small{display:block;color:var(--mute);font-weight:400}
+/* 放大预览 */
+#lightbox{position:fixed;inset:0;background:#1d2129aa;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:zoom-out}
+#lightbox i{width:min(60vh,80vw);aspect-ratio:1/1.05;border-radius:16px;background:#fff center/contain no-repeat}
+#lightbox span{color:#fff;font-size:14px}
+/* 在子 Agent 页面时，画布上只突出它负责的节点 */
+#stage[data-fk] .node{opacity:.25}
+#stage[data-fk] .frame{opacity:.4}
+#stage[data-fk="text"] .node.k-text,#stage[data-fk="shot"] .node.k-shot,#stage[data-fk="board"] .node.k-board,#stage[data-fk="char"] .node.k-char,
+#stage[data-fk="prop"] .node.k-prop,#stage[data-fk="scene"] .node.k-scene,#stage[data-fk="video"] .node.k-video{opacity:1}
+#stage[data-fk] .node.old{opacity:.5}

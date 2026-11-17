@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>询盘回复 Agent（原型）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<!--
+  Inquiry reply agent (case study prototype).
+  An inquiry is classified (AI), routed to exactly ONE fixed template by priority
+  (code), the template's blanks are filled (AI), and the draft is checked (code)
+  before a sales rep sends it.
+
+  Mock data for a FICTIONAL lighting manufacturer. No API calls, no LLM: the
+  classify result is precomputed; routing, filling and checks run in the page.
+  ?lang=en for the English UI (default Simplified Chinese). ?tour=1 enables the
+  slide-deck mode used by the blog post (postMessage {tour: 'step', id}).
+-->
+<style>
+  :root {
+    --text: #1f2328; --muted: #6e7781; --faint: #a0a7b0; --line: #e7e9ec; --soft: #f6f7f9; --bg: #fff;
+    --ink: #111418; --ai: #6e56cf; --ai-bg: #f3f0fd; --ph: #9a6700; --ph-bg: #fff5d6; --ph-line: #eac54f;
+    --ok: #1a7f4b; --warn: #9a6700; --err: #c62828; --err-bg: #fdf0f0;
+    --hit: #fff0b8;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         color: var(--text); background: var(--bg); display: flex; flex-direction: column; min-width: 1080px; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+  input, textarea { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+
+  /* Top bar */
+  .top { height: 48px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 600; letter-spacing: -.01em; }
+  .brand small { font-weight: 400; color: var(--muted); margin-left: 8px; font-size: 12px; }
+  .top .sp { flex: 1; }
+  .top a { font-size: 12.5px; color: var(--muted); text-decoration: none; }
+  .top a:hover { color: var(--text); }
+
+  .app { flex: 1; display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
+
+  /* Inbox */
+  .inbox { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: #fbfbfc; }
+  .inbox-head { padding: 16px 18px 10px; display: flex; align-items: baseline; justify-content: space-between; }
+  .inbox-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
+  .inbox-head span { font-size: 12px; color: var(--muted); }
+  .list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  .item { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; margin-bottom: 2px; }
+  .item:hover { background: #f1f2f4; }
+  .item.active { background: #fff; box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(16,24,40,.04); }
+  .item .r1 { display: flex; align-items: center; gap: 8px; }
+  .item .who { font-weight: 600; font-size: 13.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .time { font-size: 11.5px; color: var(--faint); }
+  .item .subj { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .r3 { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+  .item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink); flex: none; }
+  .item.done { opacity: .5; }
+  .item.done .dot { background: var(--ok); }
+
+  /* Pane */
+  .pane { position: relative; display: flex; flex-direction: column; min-height: 0; }
+  .scroll { flex: 1; overflow-y: auto; }
+  .inner { max-width: 760px; margin: 0 auto; padding: 28px 36px 40px; }
+
+  /* Incoming email */
+  .mail-head { display: flex; gap: 12px; align-items: center; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: #eceef1; color: #57606a; display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none; }
+  .mail-head .who { font-weight: 600; }
+  .mail-head .meta { font-size: 12.5px; color: var(--muted); }
+  .mail-head .time { margin-left: auto; font-size: 12px; color: var(--faint); align-self: flex-start; }
+  .mail h1 { font-size: 18px; font-weight: 600; letter-spacing: -.01em; margin: 16px 0 8px; }
+  .mail pre { margin: 0; white-space: pre-wrap; font: inherit; color: #3d444d; }
+  .mail mark { background: var(--hit); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .mail mark.lose { background: none; border-bottom: 1px dashed var(--faint); border-radius: 0; padding: 0; }
+
+  /* Agent stepper */
+  .agent { margin: 28px 0 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .step { text-align: left; padding: 11px 14px; border-right: 1px solid var(--line); position: relative; transition: background .15s; }
+  .step:last-child { border-right: none; }
+  .step:hover { background: var(--soft); }
+  .step.open { background: var(--soft); }
+  .step.open::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--ink); }
+  .step .t { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+  .step .n { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 10.5px; color: var(--muted); flex: none; transition: all .2s; }
+  .step.done .n { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .step.run .n { border-color: var(--ink); border-top-color: transparent; animation: spin .7s linear infinite; color: transparent; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .step .k { font-size: 10.5px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 16px; }
+  .step .k.ai { color: var(--ai); border-color: #ddd5fb; }
+  .step .s { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 25px; }
+  .step .s.bad { color: var(--err); }
+  .detail { border-top: 1px solid var(--line); padding: 14px 18px 16px; font-size: 13px; background: #fff; animation: fade .18s ease; }
+  .detail .intro { color: var(--muted); margin: 0 0 10px; }
+  .rows { display: grid; grid-template-columns: 72px 1fr; gap: 6px 14px; }
+  .rows .k { color: var(--muted); }
+  .q { display: flex; gap: 8px; align-items: baseline; }
+  .q + .q { margin-top: 4px; }
+  .q em { font-style: normal; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .q em.directed { color: var(--warn); }
+  .tiers { display: grid; grid-template-columns: 28px 1fr; gap: 4px 10px; margin-bottom: 10px; }
+  .tiers .tier { font: 11px/22px ui-monospace, Consolas, monospace; color: var(--faint); }
+  .tiers .tpls { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tpl { font-size: 12px; line-height: 22px; padding: 0 8px; border-radius: 6px; color: var(--faint); border: 1px solid transparent; }
+  .tpl.hit { color: var(--text); border-color: var(--line); }
+  .tpl.chosen { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tpl small { opacity: .7; margin-left: 4px; font-size: 11px; }
+  .fills { display: grid; grid-template-columns: 72px 1fr; gap: 6px 14px; }
+  .fills .v { color: var(--ai); }
+  .fills .v.ph { color: var(--ph); }
+  .checks .c { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; }
+  .checks .ic { width: 14px; flex: none; text-align: center; font-weight: 700; font-size: 12px; }
+  .checks .ok .ic { color: var(--ok); } .checks .warn .ic { color: var(--warn); } .checks .err .ic { color: var(--err); }
+  .checks .d { color: var(--muted); font-size: 12.5px; }
+
+  /* Draft */
+  .draft { margin-top: 20px; }
+  .controls { display: flex; align-items: center; gap: 18px; font-size: 12.5px; color: var(--muted); }
+  .controls .sp { flex: 1; }
+  .ctl { display: flex; align-items: center; gap: 8px; position: relative; }
+  .pick { color: var(--text); font-weight: 500; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line); display: inline-flex; gap: 6px; align-items: center; }
+  .pick:hover { border-color: #cfd4da; }
+  .pick .tierl { font: 10.5px ui-monospace, Consolas, monospace; color: var(--muted); }
+  .pick::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg) translateY(-2px); margin-left: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; padding: 2px; }
+  .seg button { padding: 2px 10px; border-radius: 5px; color: var(--muted); font-weight: 500; }
+  .seg button.on { background: var(--ink); color: #fff; }
+  .manual { color: var(--warn); font-size: 12px; }
+  .manual button { color: var(--muted); text-decoration: underline; margin-left: 4px; }
+  .textbtn { color: var(--muted); font-size: 12.5px; }
+  .textbtn:hover { color: var(--text); }
+  .why { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+
+  .menu { position: absolute; top: calc(100% + 6px); left: 34px; z-index: 10; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+          box-shadow: 0 12px 32px rgba(16,24,40,.12); padding: 6px; animation: fade .12s ease; }
+  .menu .g { font: 10.5px ui-monospace, Consolas, monospace; color: var(--faint); padding: 6px 8px 2px; }
+  .menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; color: var(--text); text-align: left; }
+  .menu button:hover { background: var(--soft); }
+  .menu button .m { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .menu button.cur { font-weight: 600; }
+  .menu button.cur .m { color: var(--text); }
+
+  .letter { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px 18px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .subject { width: 100%; border: none; outline: none; font-size: 15px; font-weight: 600; padding: 0 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; background: none; }
+  .body { white-space: pre-wrap; color: #24292f; line-height: 1.75; min-height: 160px; }
+  .body .ai { background: var(--ai-bg); color: #4b3a9e; border-radius: 4px; padding: 1px 3px; }
+  .body .ph { display: inline-block; min-width: 36px; border: none; outline: none; background: var(--ph-bg); color: var(--ph); border-bottom: 1.5px solid var(--ph-line);
+              border-radius: 4px 4px 0 0; padding: 0 5px; font-weight: 600; text-align: center; line-height: 1.5; }
+  .body .ph:focus { background: #ffefb3; }
+  .body .ph.filled { background: transparent; color: var(--text); border-bottom-color: var(--line); font-weight: 500; }
+  .body .sep { display: block; height: 1px; background: var(--line); margin: 14px 0; }
+  textarea.body { width: 100%; border: none; outline: none; resize: none; padding: 0; background: none; overflow: hidden; }
+  .legend { display: flex; gap: 14px; margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 11.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+  .legend .la { background: var(--ai-bg); border: 1px solid #ddd5fb; }
+  .legend .lp { background: var(--ph-bg); border: 1px solid var(--ph-line); }
+
+  .skeleton { padding: 4px 0; }
+  .skeleton div { height: 10px; border-radius: 5px; background: linear-gradient(90deg, #f1f2f4 25%, #e8eaed 50%, #f1f2f4 75%); background-size: 200% 100%; animation: shimmer 1.1s infinite; margin: 12px 0; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .reveal { animation: fade .25s ease; }
+
+  /* Send bar */
+  .sendbar { flex: none; border-top: 1px solid var(--line); background: rgba(255,255,255,.96); }
+  .sendbar .inner { padding-top: 12px; padding-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+  .status { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--err); } .status.muted { color: var(--muted); }
+  .status button { text-decoration: underline; color: inherit; }
+  .sendbar .sp { flex: 1; }
+  .send { background: var(--ink); color: #fff; padding: 7px 16px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 10px; }
+  .send kbd { font: 11px ui-monospace, Consolas, monospace; opacity: .6; }
+  .send:disabled { background: #d0d4d9; cursor: default; }
+
+  .empty { height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .empty b { display: block; color: var(--text); font-size: 16px; margin-bottom: 4px; }
+  .toast { position: fixed; bottom: 76px; left: calc(50% + 150px); transform: translateX(-50%); background: var(--ink); color: #fff; padding: 7px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  /* Tour mode (?tour=1): driven by the slide deck in the blog post. */
+  body.tour #back, body.tour #other-lang { display: none; }
+  .hl { outline: 2px solid #e11d48 !important; outline-offset: 3px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><span data-t="brand"></span><small data-t="proto"></small></div>
+  <span class="sp"></span>
+  <a id="back" data-t="back"></a>
+  <a id="other-lang"></a>
+</div>
+<div class="app">
+  <aside class="inbox">
+    <div class="inbox-head"><h2 data-t="inbox"></h2><span id="count"></span></div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main class="pane">
+    <div class="scroll" id="scroll"><div class="inner" id="inner"></div></div>
+    <div class="sendbar" id="sendbar"><div class="inner" id="sendbar-inner"></div></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// UI strings
+// ---------------------------------------------------------------------------
+const UI = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh';
+const L = (o) => (o && typeof o === 'object' && 'zh' in o ? o[UI] : o);
+const T = {
+  zh: {
+    brand: '询盘回复 Agent', proto: '原型 · 模拟数据', back: '返回文章', backUrl: '/posts/template-reply-agent/', otherLang: 'English',
+    inbox: '收件箱', count: (n) => (n ? `${n} 封待回复` : '已全部回复'),
+    src: { platform: 'B2B 平台', web: '官网表单', direct: '邮件' },
+    steps: [['分类', 'AI'], ['路由', '代码'], ['填写', 'AI'], ['检查', '代码']],
+    working: '处理中…', route: (n) => `${n} 个模板选 1`, fill: (n) => `填入 ${n} 处`, checkOk: '全部通过', checkBad: (n) => `${n} 项待处理`,
+    d1: 'LLM 读懂询盘，只输出结构化字段，不写邮件。', kScenario: '场景', kLang: '语言', kQ: '问题', noQ: '无',
+    covered: '模板已覆盖', directed: '模板未覆盖 → 一句引导',
+    d2: '代码按优先级从上到下匹配，命中第一个即停。只有选中的模板进入下一步。', hit: '也命中', kMode: '输出',
+    d3: '模板是固定的，LLM 只填空。价格、交期、运费、代理权都不由它决定。', fk: { name: '买家姓名', product: '产品', ack: '问题引导', ph: '待你填写' },
+    d4: '每次修改后重新检查，有红色项时不能发送。',
+    scenario: '场景', language: '语言', bilingual: '双语', edit: '编辑全文', doneEdit: '完成', manual: '已手动调整', restore: '恢复',
+    src2: { field: (v) => `买家在表单中选了 ${v}`, content: () => '根据询盘内容判断', default: () => '无法判断，默认英文' },
+    modeWhy: (pref, tm) => (pref ? '买家明确选了语言，只用这一种' : tm === 'bilingual' ? '买家未选语言，模板要求中英双语' : '买家未选语言，模板为单语'),
+    legendAi: 'AI 填入', legendPh: '待你填写',
+    send: '发送', sentAt: '已发送', toast: '已发送（模拟）', ready: '可以发送', need: (n) => `还有 ${n} 处待填写`, goFill: '去填写', issues: (n) => `${n} 项检查未通过`, view: '查看',
+    allDone: '全部询盘都已回复', allDoneSub: '原型不会真的发出邮件。刷新页面重新开始。',
+    phHint: { '[X]': '天数' },
+    c: { ph: '占位符', items: '资料清单', phone: '电话', link: '链接', fab: '价格与承诺', lang: '语言' },
+    ok: { ph: '已全部填写', items: (n) => `${n} 项完整保留`, phone: '来自模板', link: '来自模板', fab: '没有模板外的内容', lang: '没有混用' },
+    bad: { ph: (l) => `${l} 未填写`, items: (a, b) => `只剩 ${a} / ${b} 项，清单不能删减`, phone: (n) => `${n} 不是模板里的号码`, link: (u) => `${u} 不在模板里`,
+           fab: (w) => `「${w}」不在模板里，需业务主管确认`, lang: (c) => `英文回复中混入「${c}」` },
+  },
+  en: {
+    brand: 'Inquiry Reply Agent', proto: 'Prototype · mock data', back: 'Back to post', backUrl: '/en/posts/template-reply-agent/', otherLang: '中文',
+    inbox: 'Inbox', count: (n) => (n ? `${n} to reply` : 'All replied'),
+    src: { platform: 'Marketplace', web: 'Website form', direct: 'Email' },
+    steps: [['Classify', 'AI'], ['Route', 'Code'], ['Fill', 'AI'], ['Check', 'Code']],
+    working: 'Working…', route: (n) => `1 of ${n} templates`, fill: (n) => `${n} blank${n === 1 ? '' : 's'} filled`, checkOk: 'All passed', checkBad: (n) => `${n} to fix`,
+    d1: 'The LLM reads the inquiry and returns structured fields only. It does not write the email.', kScenario: 'Scenario', kLang: 'Language', kQ: 'Questions', noQ: 'None',
+    covered: 'covered by template', directed: 'not covered → one redirect line',
+    d2: 'Code matches top-down by priority; the first hit wins. Only the chosen template goes to the next step.', hit: 'also hit', kMode: 'Output',
+    d3: 'The template is fixed; the LLM only fills the blanks. Prices, lead times, shipping and partner terms are not its call.', fk: { name: 'Buyer name', product: 'Product', ack: 'Redirect', ph: 'For you' },
+    d4: 'Re-runs after every edit. Red items block sending.',
+    scenario: 'Scenario', language: 'Language', bilingual: 'Both', edit: 'Edit text', doneEdit: 'Done', manual: 'Adjusted', restore: 'Reset',
+    src2: { field: (v) => `Buyer chose ${v} on the form`, content: () => 'Detected from the inquiry', default: () => 'Unclear, defaulting to English' },
+    modeWhy: (pref, tm) => (pref ? 'Buyer chose a language, so only that one' : tm === 'bilingual' ? 'No choice made; this template is bilingual' : 'No choice made; this template is single-language'),
+    legendAi: 'Filled by AI', legendPh: 'For you to fill',
+    send: 'Send', sentAt: 'Sent', toast: 'Sent (simulated)', ready: 'Ready to send', need: (n) => `${n} blank${n > 1 ? 's' : ''} left`, goFill: 'Fill', issues: (n) => `${n} check${n > 1 ? 's' : ''} failed`, view: 'View',
+    allDone: 'Every inquiry has a reply', allDoneSub: 'Nothing is really sent. Reload to start over.',
+    phHint: { '[X]': 'days' },
+    c: { ph: 'Blanks', items: 'Checklist', phone: 'Phone', link: 'Links', fab: 'Prices & promises', lang: 'Language' },
+    ok: { ph: 'All filled', items: (n) => `All ${n} items kept`, phone: 'From template', link: 'From template', fab: 'Nothing outside the template', lang: 'No mixing' },
+    bad: { ph: (l) => `${l} not filled`, items: (a, b) => `Only ${a} / ${b} items; the checklist can't be cut`, phone: (n) => `${n} is not the template's number`, link: (u) => `${u} is not in the template`,
+           fab: (w) => `"${w}" is not in the template; needs a sales manager`, lang: (c) => `English reply contains "${c}"` },
+  },
+}[UI];
+const LANG = { en: 'English', zh: '中文' };
+
+// ---------------------------------------------------------------------------
+// Fixed reply templates of a FICTIONAL lighting manufacturer, by priority tier.
+// {phone} {link} are filled by code, [Name] [Product] by the model, [X] by the rep.
+// ---------------------------------------------------------------------------
+const TIERS = { P0: { zh: '定制报价', en: 'Custom quote' }, P1: { zh: '请求类型', en: 'Request type' }, P2: { zh: '渠道', en: 'Channel' },
+                P3: { zh: '订单流程', en: 'Order lifecycle' }, P4: { zh: '通用', en: 'Generic' } };
+const TEMPLATES = [
+  { id: 'oem', tier: 'P0', name: { zh: 'OEM 定制报价', en: 'OEM quote' }, mode: 'single', phone: '+86 20 8000 0101', items: 8,
+    en: ['Details needed for your OEM quotation',
+`Hi [Name],
+Thank you for your OEM inquiry about our [Product]. To prepare an accurate quotation, please send us:
+1. Product model or a reference photo
+2. Key specs: wattage, color temperature, CRI and beam angle
+3. Order quantity per model
+4. Logo and packaging requirements
+5. Certifications needed (e.g. CE, UL, RoHS)
+6. Destination port or country
+7. Preferred trade term (EXW, FOB or CIF)
+8. Required delivery date
+{questions}
+We will send your quotation within [X] working days after receiving these details.
+For questions, call us at {phone} or reply to this email.`],
+    zh: ['OEM 报价 - 需补充资料',
+`[Name]您好！
+感谢您对[Product]的 OEM 询价。为了准确报价，请提供以下资料：
+1. 产品型号或参考图片
+2. 主要参数：功率、色温、显色指数及光束角
+3. 各型号订购数量
+4. Logo 及包装要求
+5. 所需认证（如 CE、UL、RoHS）
+6. 目的港或目的国家
+7. 贸易条款（EXW、FOB 或 CIF）
+8. 要求交货日期
+{questions}
+收到资料后，我们将在[X]个工作日内发送报价。
+如有疑问，请致电 {phone} 或直接回复此邮件。`] },
+
+  { id: 'project', tier: 'P0', name: { zh: '工程项目报价', en: 'Project quote' }, mode: 'single', phone: '+86 20 8000 0102', items: 6,
+    en: ['Details needed for your lighting project quotation',
+`Hi [Name],
+Thank you for your inquiry about lighting for your project. To prepare a quotation, please provide:
+1. Project type and location
+2. Floor plans or lighting layout (PDF or CAD)
+3. Fixture list with quantities, if available
+4. Required lighting levels (lux) for each area
+5. Project schedule and delivery date
+6. Whether you need installation support on site
+{questions}
+Our project team will send a proposal within [X] working days after receiving the information.
+For questions, call our project desk at {phone}.`],
+    zh: ['照明项目报价 - 需补充资料',
+`[Name]您好！
+感谢您咨询项目照明。为了准备报价，请提供以下资料：
+1. 项目类型及地点
+2. 平面图或灯具布置图（PDF 或 CAD）
+3. 灯具清单及数量（如有）
+4. 各区域照度要求（lux）
+5. 项目进度及交货日期
+6. 是否需要现场安装支持
+{questions}
+收到资料后，项目组将在[X]个工作日内提供方案。
+如有疑问，请致电项目专线 {phone}。`] },
+
+  { id: 'sample', tier: 'P1', name: { zh: '样品申请', en: 'Sample request' }, mode: 'single', phone: '+86 20 8000 0100', link: 'https://lighting.example.com/samples',
+    en: ['Your sample request',
+`Hi [Name],
+Thank you for your interest in testing our products. You can place a sample order here:
+{link}
+Each sample order can include up to 3 models, 2 pieces each. The sample fee is refunded when you place your first bulk order.
+{questions}
+Samples ship within [X] working days after payment. For questions, call us at {phone}.`],
+    zh: ['样品申请',
+`[Name]您好！
+感谢您试用我们的产品。您可在以下网页下单订购样品：
+{link}
+每单最多 3 个型号，每个型号 2 件。下首个大货订单后，样品费将全额退还。
+{questions}
+付款后[X]个工作日内寄出样品。如有疑问，请致电 {phone}。`] },
+
+  { id: 'distributor', tier: 'P2', name: { zh: '经销合作', en: 'Distributor' }, mode: 'single', phone: '+86 20 8000 0103', link: 'https://lighting.example.com/partners/apply',
+    en: ['Becoming a Lumenford distributor',
+`Hi [Name],
+Thank you for your interest in distributing our products. Please tell us about your company using the distributor application form:
+{link}
+Our channel team reviews each application and will contact you to discuss the next steps.
+{questions}
+For questions, call our channel team at {phone}.`],
+    zh: ['成为朗峰照明经销商',
+`[Name]您好！
+感谢您有意经销我们的产品。请通过以下经销商申请表介绍贵公司：
+{link}
+渠道团队会审核每份申请，并与您联系商讨下一步安排。
+{questions}
+如有疑问，请致电渠道团队 {phone}。`] },
+
+  { id: 'fair', tier: 'P2', name: { zh: '展会跟进', en: 'Trade fair follow-up' }, mode: 'bilingual', phone: '+86 20 8000 0100', link: 'https://lighting.example.com/fair',
+    en: ['Great to meet you at our trade fair booth',
+`Hi [Name],
+Thank you for visiting our booth at the trade fair. Our fair catalog and price list are on this page:
+{link}
+Quote code FAIR26 in your inquiry to keep the fair price for orders placed within 60 days.
+{questions}
+Our team will follow up within [X] working days. You can also call us at {phone}.`],
+    zh: ['感谢您莅临展会展位',
+`[Name]您好！
+感谢您在展会期间到访我们的展位。展会目录及价目表请见：
+{link}
+询价时注明代码 FAIR26，60 天内下单可沿用展会价格。
+{questions}
+我们将在[X]个工作日内跟进，您也可致电 {phone}。`] },
+
+  { id: 'po', tier: 'P3', name: { zh: '收到采购订单', en: 'PO received' }, mode: 'single', phone: '+86 20 8000 0100',
+    en: ['We have received your purchase order',
+`Hi [Name],
+Thank you for your purchase order. We are checking the details and will send you a proforma invoice within [X] working days.
+Production starts once we receive your deposit.
+{questions}
+For questions, call us at {phone} or reply to this email.`],
+    zh: ['已收到您的采购订单',
+`[Name]您好！
+感谢您的采购订单。我们正在核对订单内容，将在[X]个工作日内发送形式发票。
+收到订金后即安排生产。
+{questions}
+如有疑问，请致电 {phone} 或直接回复此邮件。`] },
+
+  { id: 'declined', tier: 'P3', name: { zh: '买家不接受报价', en: 'Quote declined' }, mode: 'single', phone: '+86 20 8000 0100',
+    en: ['Thank you for considering us',
+`Hi [Name],
+Thank you for letting us know your decision. We respect your choice and appreciate the time you spent reviewing our quotation.
+{questions}
+If your plans change, simply reply to this email or call us at {phone}. We would be glad to work with you in the future.`],
+    zh: ['感谢您的考虑',
+`[Name]您好！
+感谢您告知决定。我们尊重您的选择，也感谢您花时间评估我们的报价。
+{questions}
+如计划有变，欢迎回复此邮件或致电 {phone}，期待日后合作。`] },
+
+  { id: 'quote', tier: 'P4', name: { zh: '一般报价', en: 'General quote' }, mode: 'bilingual', phone: '+86 20 8000 0100',
+    en: ['Your quotation request',
+`Hi [Name],
+Thank you for your quotation request for our [Product]. Our sales team will prepare a quotation and contact you within [X] working days.
+{questions}
+For questions, call us at {phone} or reply to this email.`],
+    zh: ['报价请求',
+`[Name]您好！
+感谢您对[Product]的询价。销售团队将准备报价，并在[X]个工作日内与您联系。
+{questions}
+如有疑问，请致电 {phone} 或直接回复此邮件。`] },
+
+  { id: 'catalog', tier: 'P4', name: { zh: '产品资料', en: 'Catalog' }, mode: 'bilingual', phone: '+86 20 8000 0100', link: 'https://lighting.example.com/catalog',
+    en: ['Product information: [Product]',
+`Hi [Name],
+Thank you for your interest in our [Product]. You can download the catalog and spec sheets here:
+{link}
+{questions}
+Our team is happy to recommend suitable models. Call us at {phone} or reply to this email.`],
+    zh: ['[Product]产品资料',
+`[Name]您好！
+感谢您对[Product]的关注。产品目录及规格书可在以下网页下载：
+{link}
+{questions}
+我们的同事乐意为您推荐合适的型号。请致电 {phone} 或直接回复此邮件。`] },
+];
+const TPL = Object.fromEntries(TEMPLATES.map((t) => [t.id, t]));
+const GREETING = { en: ['Hi [Name],', 'Hello,'], zh: ['[Name]您好！', '您好！'] };
+const ACK = {
+  en: (t, p) => `Regarding your question about ${t}, our team will confirm the details with you. You can also call us at ${p}.`,
+  zh: (t, p) => `关于您询问的${t}，我们的同事会与您确认具体安排，您也可致电 ${p}。`,
+};
+const SIGNATURE = { en: 'Best regards,\nAlex Lin\nLumenford Lighting · Export Sales', zh: '此致\nAlex Lin\n朗峰照明 外贸部',
+                    both: 'Best regards / 此致\nAlex Lin\nLumenford Lighting · 朗峰照明' };
+const SEP = '\n\n———\n\n';
+
+// ---------------------------------------------------------------------------
+// Inquiries (all people, companies and addresses fictional) + precomputed classify.
+// ---------------------------------------------------------------------------
+const EMAILS = [
+  { id: 'e1', src: 'platform', who: 'Jonas Weber', org: 'Weber Licht GmbH · Germany', time: '08:52', subject: 'LED Panel Light 600x600 — 5000 pcs',
+    body: `We need 5000 pcs of the LP-series 600x600 panel with our own logo on the frame and the box.\n\nWhat is your best price?\n\nJonas`,
+    hits: [['oem', ['with our own logo', '5000 pcs']], ['quote', ['best price']]],
+    why: { zh: '要印自有 Logo，属于定制。虽然只问价格，也要先收齐参数。', en: 'Own-logo product means custom. Even for a price question, the specs come first.' },
+    lang: 'en', langSrc: 'content', pref: false,
+    name: 'Jonas Weber', product: { en: 'LP-series LED panel', zh: 'LP 系列 LED 面板灯' },
+    questions: [['What is your best price?', 'covered']] },
+
+  { id: 'e2', src: 'web', who: 'Tan Mei Ling', org: 'ML Home Living · Malaysia', time: '09:30', subject: '样品 Samples',
+    body: `Preferred language: English\n\n想订样品，DL 系列筒灯 3 个型号各 2 个。可以免运费吗？`,
+    hits: [['sample', ['想订样品']]],
+    why: { zh: '要订样品。留言是中文，但表单选了 English。', en: 'Wants samples. The message is Chinese, but the form says English.' },
+    lang: 'en', langSrc: 'field', pref: true,
+    name: 'Tan Mei Ling', product: { en: 'DL-series downlights', zh: 'DL 系列筒灯' },
+    questions: [['3 个型号各 2 个', 'covered'], ['可以免运费吗？', 'directed', { en: 'shipping costs for samples', zh: '样品运费' }]] },
+
+  { id: 'e3', src: 'direct', who: '李工', org: 'li.gong@example.com', time: '10:05', subject: '酒店改造项目灯具询价',
+    body: `您好，\n\n我们承接了一个酒店客房改造项目，大约 320 间客房，需要筒灯、灯带和床头灯，总量约 2,000 套。能否先给个报价？图纸可以后补。\n\n李工`,
+    hits: [['project', ['酒店客房改造项目']], ['quote', ['能否先给个报价']]],
+    why: { zh: '酒店改造工程，属于项目报价，优先于一般报价。', en: 'A hotel refurbishment is a project quote, which outranks a general quote.' },
+    lang: 'zh', langSrc: 'content', pref: false,
+    name: '李工', product: { en: 'hotel room lighting', zh: '酒店客房灯具' },
+    questions: [['能否先给个报价？', 'covered']] },
+
+  { id: 'e4', src: 'platform', who: { zh: '未署名买家', en: 'Unknown buyer' }, org: 'Hong Kong', time: '10:41', subject: 'Track Light (TR series)',
+    body: `(no message)`,
+    hits: [['catalog', ['Track Light']]],
+    why: { zh: '只有产品名，没有具体需求，落到兜底的产品资料。', en: 'Only a product name, so it falls through to the catalog template.' },
+    lang: 'en', langSrc: 'default', pref: false,
+    name: null, product: { en: 'TR-series track lights', zh: 'TR 系列轨道灯' },
+    questions: [] },
+
+  { id: 'e5', src: 'direct', who: 'Diego Rojas', org: 'Rojas Iluminación · Chile', time: '11:02', subject: 'Distribution partnership in Chile',
+    body: `Hello,\n\nWe are a lighting wholesaler in Santiago with 12 stores, interested in becoming your distributor for Chile.\n\nDo you offer exclusive territory rights?\n\nBest regards,\nDiego Rojas`,
+    hits: [['distributor', ['becoming your distributor']]],
+    why: { zh: '申请成为当地经销商。独家代理是商务决策，AI 不作回答。', en: 'Wants to be the local distributor. Exclusivity is a business decision the AI does not answer.' },
+    lang: 'en', langSrc: 'content', pref: false,
+    name: 'Diego Rojas', product: { en: 'distribution', zh: '经销合作' },
+    questions: [['Do you offer exclusive territory rights?', 'directed', { en: 'exclusive territory rights', zh: '独家区域代理' }]] },
+
+  { id: 'e6', src: 'direct', who: '王敏', org: 'wang.min@example.com', time: '11:26', subject: '回复：报价单 Q-2026-0187',
+    body: `您好，\n\n谢谢你们的报价。经过比较，我们这次选择了其他供应商，以后有机会再合作。\n\n王敏`,
+    hits: [['declined', ['选择了其他供应商']]],
+    why: { zh: '回复报价单，选择了其他供应商。', en: 'Replies to a quotation: they chose another supplier.' },
+    lang: 'zh', langSrc: 'content', pref: false,
+    name: '王敏', product: { en: 'quotation', zh: '报价' },
+    questions: [] },
+
+  { id: 'e7', src: 'web', who: '陈伟', org: 'CW Solar · Singapore', time: '11:48', subject: 'Solar street lights',
+    body: `Preferred language: 中文\n\nWe met at your booth during the trade fair last week. Please send prices for the SL-series solar street lights.`,
+    hits: [['fair', ['at your booth', 'trade fair']], ['quote', ['send prices']]],
+    why: { zh: '展会上见过的买家，展会跟进优先于一般报价。表单选了中文。', en: 'Met at the fair, so the fair follow-up outranks a general quote. The form says Chinese.' },
+    lang: 'zh', langSrc: 'field', pref: true,
+    name: '陈伟', product: { en: 'SL-series solar street lights', zh: 'SL 系列太阳能路灯' },
+    questions: [['Please send prices', 'covered']] },
+];
+const byId = (id) => EMAILS.find((e) => e.id === id);
+
+// ---------------------------------------------------------------------------
+// State + helpers
+// ---------------------------------------------------------------------------
+const state = { active: 'e1', d: {}, sent: {}, menu: false, run: 0 };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const PH_RE = /\[[^\]\n]{1,20}\]/g;
+const aiTpl = (e) => e.hits[0][0];
+const defaultMode = (e, tpl) => (e.pref ? e.lang : TPL[tpl].mode === 'bilingual' ? 'both' : e.lang);
+
+// Route (code) + fill (mocked model). Keeps the rep's blank values across regenerations.
+function draft(id, keep) {
+  const e = byId(id), prev = state.d[id];
+  const d = keep && prev ? prev : { tpl: aiTpl(e), mode: defaultMode(e, aiTpl(e)), ph: {}, edit: false, revealed: false, manual: false, modeSet: false };
+  if (!d.modeSet) d.mode = defaultMode(e, d.tpl);
+  const t = TPL[d.tpl], langs = d.mode === 'both' ? ['en', 'zh'] : [d.mode];
+  const marks = [];
+  const parts = langs.map((l) => {
+    let [subject, body] = t[l];
+    body = e.name ? body.replaceAll('[Name]', e.name) : body.replace(GREETING[l][0], GREETING[l][1]);
+    if (e.name) marks.push(['name', e.name]);
+    if ((subject + body).includes('[Product]')) marks.push(['product', e.product[l]]);
+    subject = subject.replaceAll('[Product]', e.product[l]); body = body.replaceAll('[Product]', e.product[l]);
+    const acks = e.questions.filter((q) => q[1] === 'directed').map((q) => ACK[l](q[2][l], t.phone));
+    acks.forEach((a) => marks.push(['ack', a]));
+    body = body.replace('{questions}\n', acks.map((a) => a + '\n').join('')).replaceAll('{phone}', t.phone).replaceAll('{link}', t.link || '');
+    return { subject, body };
+  });
+  d.langs = langs;
+  d.subject = parts.map((p) => p.subject).join(' / ');
+  d.text = parts.map((p) => p.body).join(SEP) + '\n\n' + SIGNATURE[langs.length > 1 ? 'both' : langs[0]];
+  d.marks = [...new Map(marks.map((m) => [m[1], m])).values()];
+  d.edit = false;
+  state.d[id] = d;
+}
+const finalText = (d) => d.text.replace(PH_RE, (m) => d.ph[m] || m);
+
+// Checks (code)
+const RISKY = [/(US\$|USD|\$|€|¥)\s?\d[\d,.]*/i, /\d+(\.\d+)?\s?%/, /guarantee\w*/i, /free shipping|ship(ping)? for free/i, /免运费|包邮/, /保证|承诺/,
+               /exclusive (rights|territory) (is|are) yours|we can grant/i, /独家代理权(给|归)/];
+const digits = (p) => p.replace(/\D/g, '');
+function checks(e, d) {
+  const t = TPL[d.tpl], text = finalText(d), all = d.subject + '\n' + text, out = [];
+  const ph = [...new Set(all.match(PH_RE) || [])];
+  out.push(ph.length ? ['ph', 'err', T.bad.ph(ph.join(' ')), ph[0]] : ['ph', 'ok', T.ok.ph]);
+  if (t.items) {
+    const want = t.items * d.langs.length, got = (text.match(/^\s*\d+\.\s/gm) || []).length;
+    out.push(got >= want ? ['items', 'ok', T.ok.items(want)] : ['items', 'err', T.bad.items(got, want)]);
+  }
+  const badPhone = (text.match(/\+\d{1,3}(?:[ -]?\d{2,4}){2,4}/g) || []).find((p) => digits(p) !== digits(t.phone));
+  out.push(badPhone ? ['phone', 'err', T.bad.phone(badPhone)] : ['phone', 'ok', T.ok.phone]);
+  if (t.link || /https?:\/\//.test(text)) {
+    const badLink = (text.match(/https?:\/\/[^\s，。)]+/g) || []).find((u) => u !== t.link);
+    out.push(badLink ? ['link', 'err', T.bad.link(badLink)] : ['link', 'ok', T.ok.link]);
+  }
+  const tplText = d.langs.map((l) => t[l][1]).join('\n');
+  let fab = null;
+  for (const re of RISKY) { const m = text.match(re); if (m && !tplText.includes(m[0])) { fab = m[0]; break; } }
+  out.push(fab ? ['fab', 'warn', T.bad.fab(fab)] : ['fab', 'ok', T.ok.fab]);
+  if (d.langs.length === 1 && d.langs[0] === 'en') {
+    const m = text.replaceAll(e.name || '\u0000', '').match(/[一-鿿]+/);
+    out.push(m ? ['lang', 'warn', T.bad.lang(m[0].slice(0, 8))] : ['lang', 'ok', T.ok.lang]);
+  }
+  return out.map(([k, level, msg, find]) => ({ k, level, msg, find }));
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function renderList() {
+  const left = EMAILS.filter((e) => !state.sent[e.id]).length;
+  $('count').textContent = T.count(left);
+  $('list').innerHTML = EMAILS.map((e) => `
+    <button class="item ${e.id === state.active ? 'active' : ''} ${state.sent[e.id] ? 'done' : ''}" data-id="${e.id}">
+      <div class="r1"><span class="who">${esc(L(e.who))}</span><span class="time">${e.time}</span></div>
+      <div class="subj">${esc(e.subject)}</div>
+      <div class="r3"><span class="dot"></span>${T.src[e.src]} · ${esc(L(TPL[state.d[e.id].tpl].name))}${state.sent[e.id] ? ' · ' + T.sentAt : ''}</div>
+    </button>`).join('');
+}
+
+function highlightMail(e) {
+  let html = esc(e.body);
+  const marks = e.hits.flatMap(([, words], i) => words.map((w) => [w, i ? 'lose' : '']));
+  marks.sort((a, b) => b[0].length - a[0].length).forEach(([w, c]) => {
+    const ew = esc(w);
+    if (html.includes(ew)) html = html.replace(ew, `<mark class="${c}">${ew}</mark>`);
+  });
+  return html;
+}
+
+function stepSummaries(e, d, res) {
+  const bad = res.filter((r) => r.level !== 'ok').length;
+  const fills = d.marks.length + Object.values(d.ph).filter(Boolean).length;
+  return [
+    [L(TPL[aiTpl(e)].name), false],
+    [T.route(TEMPLATES.length), false],
+    [T.fill(fills), false],
+    [bad ? T.checkBad(bad) : T.checkOk, res.some((r) => r.level === 'err')],
+  ];
+}
+
+function renderAgent(e, d, res, progress) {
+  const sums = stepSummaries(e, d, res);
+  const steps = T.steps.map(([name, kind], i) => {
+    const cls = progress < i ? '' : progress === i ? 'run' : 'done';
+    const s = progress > i ? sums[i] : [progress === i ? T.working : '', false];
+    return `<button class="step ${cls} ${d.open === i ? 'open' : ''}" data-step="${i}">
+      <div class="t"><span class="n">${progress > i ? '✓' : i + 1}</span>${name}<span class="k ${kind === 'AI' ? 'ai' : ''}">${kind}</span></div>
+      <div class="s ${s[1] ? 'bad' : ''}">${esc(s[0])}&nbsp;</div></button>`;
+  }).join('');
+  return `<div class="agent"><div class="steps">${steps}</div>${progress >= 4 && d.open != null ? `<div class="detail">${stepDetail(e, d, res, d.open)}</div>` : ''}</div>`;
+}
+
+function stepDetail(e, d, res, i) {
+  if (i === 0) {
+    const qs = e.questions.length ? e.questions.map((q) => `<div class="q"><span>${esc(q[0])}</span><em class="${q[1]}">${T[q[1]]}</em></div>`).join('') : `<span style="color:var(--faint)">${T.noQ}</span>`;
+    return `<p class="intro">${T.d1}</p><div class="rows">
+      <span class="k">${T.kScenario}</span><span>${esc(L(TPL[aiTpl(e)].name))} <span style="color:var(--muted)">— ${esc(L(e.why))}</span></span>
+      <span class="k">${T.kLang}</span><span>${LANG[e.lang]} <span style="color:var(--muted)">— ${T.src2[e.langSrc](LANG[e.lang])}</span></span>
+      <span class="k">${T.kQ}</span><span>${qs}</span></div>`;
+  }
+  if (i === 1) {
+    const hitIds = e.hits.map((h) => h[0]);
+    const rows = Object.keys(TIERS).map((tier) => `<span class="tier">${tier}</span><span class="tpls">${TEMPLATES.filter((t) => t.tier === tier).map((t) =>
+      `<span class="tpl ${t.id === d.tpl ? 'chosen' : hitIds.includes(t.id) ? 'hit' : ''}">${esc(L(t.name))}${t.id !== d.tpl && hitIds.includes(t.id) ? `<small>${T.hit}</small>` : ''}</span>`).join('')}</span>`).join('');
+    return `<p class="intro">${T.d2}</p><div class="tiers">${rows}</div>
+      <div class="rows"><span class="k">${T.kMode}</span><span>${d.langs.map((l) => LANG[l]).join(' + ')} <span style="color:var(--muted)">— ${T.modeWhy(e.pref, TPL[d.tpl].mode)}</span></span></div>`;
+  }
+  if (i === 2) {
+    const items = d.marks.map(([k, v]) => `<span class="k">${T.fk[k]}</span><span class="v">${esc(v)}</span>`);
+    [...new Set(d.text.match(PH_RE) || [])].forEach((p) => items.push(`<span class="k">${T.fk.ph}</span><span class="v ph">${esc(d.ph[p] || p)}</span>`));
+    return `<p class="intro">${T.d3}</p><div class="fills">${items.join('')}</div>`;
+  }
+  const ic = { ok: '✓', warn: '!', err: '✕' };
+  return `<p class="intro">${T.d4}</p><div class="checks">${res.map((r) => `<div class="c ${r.level}"><span class="ic">${ic[r.level]}</span><span>${T.c[r.k]}</span><span class="d">${esc(r.msg)}</span></div>`).join('')}</div>`;
+}
+
+// Letter body: AI-filled values are tinted, blanks become inline inputs.
+function letterHtml(d) {
+  const tokens = d.marks.map((m) => m[1]).sort((a, b) => b.length - a.length).map(reEsc);
+  const re = new RegExp(`(${[...tokens, '\\[[^\\]\\n]{1,20}\\]', '———'].join('|')})`, 'g');
+  return d.text.split(re).map((part, i) => {
+    if (i % 2 === 0) return esc(part);
+    if (part === '———') return '<span class="sep"></span>';
+    if (/^\[.*\]$/.test(part) && !d.marks.some((m) => m[1] === part)) {
+      const v = d.ph[part] || '';
+      return `<input class="ph ${v ? 'filled' : ''}" data-ph="${esc(part)}" value="${esc(v)}" placeholder="${esc(T.phHint[part] || part)}" size="${Math.max(3, v.length + 1)}">`;
+    }
+    const m = d.marks.find((x) => x[1] === part);
+    return `<span class="ai ${m[0]}" title="${T.legendAi} · ${T.fk[m[0]]}">${esc(part)}</span>`;
+  }).join('').replace(/\n*<span class="sep"><\/span>\n*/g, '<span class="sep"></span>');
+}
+
+function renderDraft(e, d) {
+  const t = TPL[d.tpl];
+  const seg = ['en', 'zh', 'both'].map((m) => `<button data-mode="${m}" class="${d.mode === m ? 'on' : ''}">${m === 'both' ? T.bilingual : LANG[m]}</button>`).join('');
+  const menu = state.menu ? `<div class="menu" id="menu">${Object.keys(TIERS).map((tier) => `<div class="g">${tier} · ${L(TIERS[tier])}</div>` +
+      TEMPLATES.filter((x) => x.tier === tier).map((x) => `<button data-tpl="${x.id}" class="${x.id === d.tpl ? 'cur' : ''}">${esc(L(x.name))}
+        <span class="m">${x.id === d.tpl ? '✓' : e.hits.some((h) => h[0] === x.id) ? T.hit : ''}</span></button>`).join('')).join('')}</div>` : '';
+  const sent = state.sent[e.id];
+  const body = d.edit
+    ? `<textarea class="body" id="ta" spellcheck="false">${esc(finalText(d))}</textarea>`
+    : `<div class="body" id="body">${letterHtml(d)}</div>`;
+  return `<div class="draft">
+    <div class="controls">
+      <div class="ctl"><span>${T.scenario}</span><button class="pick" id="pick" ${sent ? 'disabled' : ''}><span class="tierl">${t.tier}</span>${esc(L(t.name))}</button>${menu}</div>
+      <div class="ctl"><span>${T.language}</span><div class="seg" id="seg">${seg}</div></div>
+      ${d.manual ? `<span class="manual">${T.manual}<button id="restore">${T.restore}</button></span>` : ''}
+      <span class="sp"></span>
+      ${sent ? '' : `<button class="textbtn" id="toggle-edit">${d.edit ? T.doneEdit : T.edit}</button>`}
+    </div>
+    <p class="why">${esc(L(e.why))}${UI === 'en' ? ' ' : ''}${esc(T.modeWhy(e.pref, t.mode))}${UI === 'en' ? '.' : '。'}</p>
+    <div class="letter reveal">
+      <input class="subject" id="subject" value="${esc(d.subject)}" ${sent ? 'readonly' : ''}>
+      ${body}
+      <div class="legend"><span><i class="la"></i>${T.legendAi}</span><span><i class="lp"></i>${T.legendPh}</span></div>
+    </div></div>`;
+}
+
+function renderSendbar(e, d, res) {
+  if (!e) { $('sendbar').hidden = true; return; }
+  $('sendbar').hidden = false;
+  const errs = res.filter((r) => r.level === 'err'), blanks = [...new Set((d.subject + finalText(d)).match(PH_RE) || [])].length;
+  let status;
+  if (state.sent[e.id]) status = `<span class="status muted">✓ ${T.sentAt} ${state.sent[e.id]}</span>`;
+  else if (blanks && errs.length === 1) status = `<span class="status bad">${T.need(blanks)} · <button id="go-fill">${T.goFill}</button></span>`;
+  else if (errs.length) status = `<span class="status bad">${T.issues(errs.length)} · <button id="go-check">${T.view}</button></span>`;
+  else status = `<span class="status ok">✓ ${T.ready}${res.some((r) => r.level === 'warn') ? ` · <button id="go-check" style="color:var(--warn)">${T.checkBad(res.filter((r) => r.level === 'warn').length)}</button>` : ''}</span>`;
+  $('sendbar-inner').innerHTML = `${status}<span class="sp"></span>
+    <button class="send" id="send" ${errs.length || state.sent[e.id] ? 'disabled' : ''}>${T.send}<kbd>${/Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'} ↵</kbd></button>`;
+}
+
+function render() {
+  renderList();
+  const e = byId(state.active);
+  if (!e) {
+    $('inner').innerHTML = `<div class="empty" style="height:70vh"><div><b>${T.allDone}</b>${T.allDoneSub}</div></div>`;
+    renderSendbar(null); return;
+  }
+  const d = state.d[e.id], res = checks(e, d);
+  $('inner').innerHTML = `
+    <article class="mail">
+      <div class="mail-head"><span class="avatar">${esc(L(e.who)[0])}</span>
+        <div><div class="who">${esc(L(e.who))}</div><div class="meta">${esc(e.org)} · ${T.src[e.src]}</div></div><span class="time">${e.time}</span></div>
+      <h1>${esc(e.subject)}</h1><pre>${highlightMail(e)}</pre>
+    </article>
+    <div id="agent-wrap">${renderAgent(e, d, res, d.revealed ? 4 : d.progress ?? 0)}</div>
+    <div id="draft-wrap">${d.revealed ? renderDraft(e, d) : `<div class="letter" style="margin-top:44px"><div class="skeleton">${'<div></div>'.repeat(6)}</div></div>`}</div>`;
+  renderSendbar(e, d, res);
+  const ta = $('ta'); if (ta) autosize(ta);
+}
+
+// Light refresh while typing (keeps focus): stepper, step detail and send bar.
+function refresh() {
+  const e = byId(state.active), d = state.d[e.id], res = checks(e, d);
+  $('agent-wrap').innerHTML = renderAgent(e, d, res, 4);
+  renderSendbar(e, d, res);
+  renderList();
+}
+const autosize = (ta) => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+
+// First open of an inquiry plays the four steps, then shows the draft.
+function open(id) {
+  state.active = id; state.menu = false;
+  const d = state.d[id], run = ++state.run;
+  $('scroll').scrollTop = 0;
+  if (d.revealed || state.sent[id]) { d.revealed = true; render(); return; }
+  d.progress = 0; render();
+  const tick = () => {
+    if (run !== state.run) return;
+    d.progress++;
+    if (d.progress >= 4) { d.revealed = true; render(); return; }
+    render(); setTimeout(tick, 380);
+  };
+  setTimeout(tick, 380);
+}
+
+function send() {
+  const e = byId(state.active); if (!e) return;
+  const d = state.d[e.id];
+  if (state.sent[e.id] || checks(e, d).some((r) => r.level === 'err')) return;
+  d.text = finalText(d); d.ph = {}; d.edit = false;
+  const now = new Date(); state.sent[e.id] = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const t = $('toast'); t.textContent = T.toast; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1400);
+  const next = EMAILS.find((x) => !state.sent[x.id]);
+  if (next) open(next.id); else { state.active = null; render(); }
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+$('list').onclick = (ev) => { const b = ev.target.closest('.item'); if (b) open(b.dataset.id); };
+
+document.addEventListener('click', (ev) => {
+  const e = byId(state.active); if (!e) return;
+  const d = state.d[e.id], tgt = ev.target;
+  const step = tgt.closest('[data-step]');
+  if (step && d.revealed) { const i = +step.dataset.step; d.open = d.open === i ? null : i; refresh(); return; }
+  if (tgt.closest('#pick')) { state.menu = !state.menu; render(); return; }
+  const tp = tgt.closest('[data-tpl]');
+  if (tp) { const ph = d.ph; d.tpl = tp.dataset.tpl; draft(e.id, true); d.ph = ph; d.manual = true; state.menu = false; render(); return; }
+  if (state.menu && !tgt.closest('#menu')) { state.menu = false; render(); return; }
+  const mb = tgt.closest('[data-mode]');
+  if (mb && !state.sent[e.id]) { d.mode = mb.dataset.mode; d.modeSet = true; draft(e.id, true); d.manual = true; render(); return; }
+  if (tgt.closest('#restore')) { draft(e.id); state.d[e.id].revealed = true; render(); return; }
+  if (tgt.closest('#toggle-edit')) {
+    if (!d.edit) { d.text = finalText(d); d.ph = {}; }
+    d.edit = !d.edit; render(); if (d.edit) $('ta').focus(); return;
+  }
+  if (tgt.closest('#go-fill')) { const i = [...document.querySelectorAll('input.ph')].find((x) => !x.value); if (i) { i.focus(); i.scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
+  if (tgt.closest('#go-check')) { d.open = 3; refresh(); $('agent-wrap').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+  if (tgt.closest('#send')) send();
+});
+
+document.addEventListener('input', (ev) => {
+  const e = byId(state.active); if (!e) return;
+  const d = state.d[e.id], tgt = ev.target;
+  if (tgt.matches('input.ph')) {
+    d.ph[tgt.dataset.ph] = tgt.value.trim();
+    document.querySelectorAll(`input.ph[data-ph="${CSS.escape(tgt.dataset.ph)}"]`).forEach((x) => {
+      if (x !== tgt) x.value = tgt.value;
+      x.size = Math.max(3, x.value.length + 1); x.classList.toggle('filled', !!x.value);
+    });
+  } else if (tgt.id === 'ta') { d.text = tgt.value; autosize(tgt); }
+  else if (tgt.id === 'subject') d.subject = tgt.value;
+  else return;
+  refresh();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); send(); return; }
+  if (ev.key === 'Escape' && state.menu) { state.menu = false; render(); return; }
+  if (ev.target.matches('input, textarea')) {
+    if (ev.key === 'Enter' && ev.target.matches('input.ph')) { ev.preventDefault(); ev.target.blur(); }
+    return;
+  }
+  const i = EMAILS.findIndex((x) => x.id === state.active);
+  if ((ev.key === 'j' || ev.key === 'ArrowDown') && i < EMAILS.length - 1) { ev.preventDefault(); open(EMAILS[i + 1].id); }
+  if ((ev.key === 'k' || ev.key === 'ArrowUp') && i > 0) { ev.preventDefault(); open(EMAILS[i - 1].id); }
+});
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+document.documentElement.lang = UI === 'en' ? 'en' : 'zh-CN';
+document.title = `${T.brand} · ${UI === 'en' ? 'Prototype' : '原型'}`;
+document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = T[el.dataset.t]; });
+$('back').href = T.backUrl;
+$('other-lang').textContent = T.otherLang;
+$('other-lang').href = UI === 'en' ? '?' : '?lang=en';
+EMAILS.forEach((e) => draft(e.id));
+
+// ---------------------------------------------------------------------------
+// Tour mode: each slide replays from a fresh state, so slides work in any order.
+// ---------------------------------------------------------------------------
+const TOUR = new URLSearchParams(location.search).has('tour');
+function show(id, opts = {}) {
+  state.run++; state.sent = {}; state.menu = !!opts.menu; state.active = id;
+  EMAILS.forEach((e) => draft(e.id));
+  const d = state.d[id];
+  d.revealed = true; d.open = opts.open ?? null;
+  if (opts.ph) Object.assign(d.ph, opts.ph);
+  if (opts.edit) { d.text = opts.edit(finalText(d)); d.ph = {}; d.edit = true; }
+  render();
+}
+const STEPS = {
+  layout: { run: () => show('e1'), hl: ['.inbox', '.agent'] },
+  priority: { run: () => show('e1', { open: 0 }), hl: ['.mail pre', '.detail'] },
+  route: { run: () => show('e1', { open: 1 }), hl: ['.detail'] },
+  fill: { run: () => show('e1', { open: 2 }), hl: ['.detail', '.body .ai'] },
+  blank: { run: () => show('e1'), hl: ['input.ph', '.sendbar .status'] },
+  language: { run: () => show('e2', { open: 0 }), hl: ['.mail pre', '.why'] },
+  redirect: { run: () => show('e5', { open: 0 }), hl: ['.detail .q', '.body .ai.ack'] },
+  bilingual: { run: () => show('e4', { open: 1 }), hl: ['.seg', '.body .sep'] },
+  checks: { run: () => show('e2', { open: 3, ph: { '[X]': '3' }, edit: (t) => t.replace(/\n\n(Best regards)/, '\nWe offer free shipping on samples.\n\n$1') }), hl: ['.detail', '.sendbar .status'] },
+  override: { run: () => show('e7', { menu: true }), hl: ['#menu'] },
+};
+if (TOUR) {
+  document.body.classList.add('tour');
+  // Keep scrolling and focus inside the prototype so the host page never jumps.
+  Element.prototype.scrollIntoView = function () { const sc = $('scroll'); if (sc.contains(this)) sc.scrollTop += this.getBoundingClientRect().top - sc.getBoundingClientRect().top - 80; };
+  HTMLElement.prototype.focus = function () {};
+  addEventListener('message', (ev) => {
+    if (ev.source !== parent || ev.data?.tour !== 'step') return;
+    const step = STEPS[ev.data.id]; if (!step) return;
+    document.querySelectorAll('.hl').forEach((el) => el.classList.remove('hl'));
+    step.run();
+    $('scroll').scrollTop = 0;
+    step.hl.forEach((sel) => document.querySelectorAll(sel).forEach((el) => el.classList.add('hl')));
+    const first = [...document.querySelectorAll('.hl')].find((el) => $('scroll').contains(el) && !el.closest('.mail'));
+    if (first && first.getBoundingClientRect().bottom > innerHeight - 70) first.scrollIntoView();
+  });
+  show('e1');
+  parent.postMessage({ tour: 'ready' }, '*');
+} else {
+  open('e1');
+}
+</script>
+</body>
+</html>

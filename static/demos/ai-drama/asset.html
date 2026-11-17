@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资产工作室</title>
+<!--
+  资产工作室（独立原型）：角色 / 道具 / 场景 Agent 的全屏页面，用 ?k=char|prop|scene 切换。
+  左侧资产列表，中间资产板 / 锁 / 出镜检查（场景另有机位与光向）/ 提示词，右侧对应的 Agent。
+  产物链与锁来自 docs/practices/01、03、04 和 notebooks/xiejiaoxing_*.ipynb；设定卡和镜头来自项目文件（js/project/loader.js）。生成是模拟的；media.yaml 里有真图的候选显示真图，其余是 SVG 占位。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/asset.css">
+</head>
+<body>
+<div id="studio">
+  <header id="hdr"><nav id="stagebar" data-cur="asset"></nav></header>
+  <aside id="cast" data-side></aside>
+  <main id="main"><div class="pbar"><nav id="kindSw"></nav><span class="sp"></span><span class="chip">整体一致性 <b id="hScore">未检查</b></span><button class="btn sm" id="hExport">导出资产包</button></div><div id="hero"></div><nav id="tabs"></nav><section id="view"></section></main>
+  <aside id="agent">
+    <div class="ah"><span class="aav" id="agentAv"></span><div><b id="agentName"></b><small id="agentSkill"></small></div><a class="ib" href="index.html" title="回到导演 Agent">🎬</a></div>
+    <div id="aCtx"></div>
+    <div id="aMsgs"></div>
+    <div id="aSugs"></div>
+    <div class="acomp">
+      <textarea id="aIn" rows="2" placeholder="说要改什么，或先在图上圈选区域"></textarea>
+      <div class="arow"><button class="ib" id="aAttach" title="上传参考图">📎</button><input type="file" id="aFile" accept="image/*" hidden><span class="sp"></span><button class="send" id="aSend">➤</button></div>
+    </div>
+  </aside>
+</div>
+<div id="modal" hidden><div class="mcard"><div class="mh"><b id="mTitle"></b><button class="ib" id="mClose">✕</button></div><div id="mBody"></div></div></div>
+<div id="toast"></div>
+<script src="js/dock.js"></script>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script src="js/stagebar.js"></script>
+<script src="js/asset/art-char.js"></script>
+<script src="js/asset/art-prop.js"></script>
+<script src="js/asset/art-scene.js"></script>
+<script src="js/asset/kinds.js"></script>
+<script src="js/asset/studio.js"></script>
+<script src="js/asset/agent.js"></script>
+</body>
+</html>

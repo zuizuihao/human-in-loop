@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 610" role="img" aria-labelledby="title desc" font-family="system-ui,-apple-system,'Segoe UI',sans-serif" fill="#1e293b">
+  <title id="title">待验证的按需补读方案</title>
+  <desc id="desc">默认使用传统 OCR 加统一抽取；手写、低质量区域或高风险字段触发 VLM 补读。保留独立候选和来源，结果一致仍需校验。满足放行规则才接受，冲突、校验失败或证据不足进入人工复核。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 1 L9 5 L0 9" fill="none" stroke="#64748b" stroke-width="1.6"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="758" height="608" rx="16" fill="#fff" stroke="#cbd5e1"/>
+  <text x="380" y="38" text-anchor="middle" font-size="19" font-weight="600">从单路基线开始，按需增加第二次识别</text>
+  <text x="380" y="65" text-anchor="middle" font-size="14" fill="#92400e">设计建议：全量双跑已分析，完整按需路由仍待验证</text>
+  <rect x="40" y="94" width="310" height="86" rx="10" fill="#f0fdfa" stroke="#0f766e"/>
+  <text x="195" y="128" text-anchor="middle" font-size="17" font-weight="600" fill="#0f766e">默认路线 · 传统 OCR</text>
+  <text x="195" y="157" text-anchor="middle" font-size="14">获取文本、来源及可用的质量信号</text>
+  <path d="M350 136 H405" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="410" y="94" width="310" height="86" rx="10" fill="#fffbeb" stroke="#b45309"/>
+  <text x="565" y="128" text-anchor="middle" font-size="17" font-weight="600" fill="#b45309">触发补读？</text>
+  <text x="565" y="157" text-anchor="middle" font-size="14">手写、低质量区域或高风险字段</text>
+  <path d="M565 180 V212" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="579" y="202" font-size="13" fill="#92400e">是</text>
+  <rect x="410" y="216" width="310" height="86" rx="10" fill="#fffbeb" stroke="#b45309"/>
+  <text x="565" y="250" text-anchor="middle" font-size="17" font-weight="600" fill="#b45309">VLM 从原件补读</text>
+  <text x="565" y="279" text-anchor="middle" font-size="14">产生另一份证据，不覆盖第一路</text>
+  <path d="M195 180 V334" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="210" y="251" font-size="14" fill="#0f766e">基线始终保留</text>
+  <path d="M565 302 V334" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="40" y="338" width="680" height="78" rx="10" fill="#eef2ff" stroke="#4338ca"/>
+  <text x="380" y="369" text-anchor="middle" font-size="17" font-weight="600" fill="#4338ca">相同抽取模型与 Schema，分别生成字段候选</text>
+  <text x="380" y="397" text-anchor="middle" font-size="14">有两路时比较候选；一致仍不等于正确</text>
+  <path d="M380 416 V444" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="170" y="448" width="420" height="48" rx="10" fill="#f8fafc" stroke="#64748b"/>
+  <text x="380" y="478" text-anchor="middle" font-size="16" font-weight="600">证据、冲突与业务规则检查</text>
+  <path d="M270 496 V544" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M490 496 V544" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="255" y="526" text-anchor="end" font-size="13" fill="#0f766e">满足放行规则</text>
+  <text x="505" y="526" font-size="13" fill="#b91c1c">冲突、失败或证据不足</text>
+  <rect x="170" y="548" width="200" height="40" rx="8" fill="#f0fdfa" stroke="#0f766e"/>
+  <text x="270" y="574" text-anchor="middle" font-size="16" fill="#0f766e">接受结果</text>
+  <rect x="390" y="548" width="200" height="40" rx="8" fill="#fef2f2" stroke="#b91c1c"/>
+  <text x="490" y="574" text-anchor="middle" font-size="16" fill="#b91c1c">人工复核</text>
+</svg>

@@ -1,0 +1,5 @@
+home_latest: 最新文章
+home_all_posts: 查看全部文章
+home_topics: 常写的主题
+home_stats: "{{ .posts }} 篇文章 · {{ .tags }} 个标签"
+home_stats_posts: "{{ .posts }} 篇文章"

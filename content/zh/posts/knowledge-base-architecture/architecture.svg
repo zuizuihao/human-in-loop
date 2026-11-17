@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 630" role="img" aria-labelledby="title desc" font-family="system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" fill="#1e293b">
+  <title id="title">知识库的整体结构</title>
+  <desc id="desc">网站页面、PDF 原件和人工补充资料经来源适配器转换后，以 PR 的形式进入 Git 管理的 Markdown 知识库，原件按哈希存放在仓库外。合并后，精确取文接口和检索索引分别服务问答机器人和搜索页。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 L9 5 L0 9" fill="none" stroke="#64748b" stroke-width="1.6"/></marker></defs>
+  <rect x="1" y="1" width="758" height="628" rx="16" fill="#fff" stroke="#e2e8f0"/>
+<rect x="40" y="28" width="200" height="46" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="140.0" y="56.0" text-anchor="middle" font-size="15" font-weight="600">网站页面</text>
+<path d="M140 74 V93.0 H260 V112" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="280" y="28" width="200" height="46" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="380.0" y="56.0" text-anchor="middle" font-size="15" font-weight="600">PDF 原件</text>
+<path d="M380 74 V93.0 H260 V112" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="520" y="28" width="200" height="46" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="620.0" y="56.0" text-anchor="middle" font-size="15" font-weight="600">人工补充</text>
+<path d="M620 74 V93.0 H260 V112" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="40" y="112" width="440" height="62" rx="10" fill="#fff" stroke="#4338ca" stroke-width="1.4"/>
+<text x="260.0" y="137.0" text-anchor="middle" font-size="15" font-weight="600" fill="#4338ca">来源适配器</text>
+<text x="260.0" y="159.0" text-anchor="middle" font-size="13.5" fill="#475569">抓取 · 转换为 Markdown · 按语言拆分</text>
+<rect x="520" y="112" width="200" height="62" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="620.0" y="137.0" text-anchor="middle" font-size="14" font-weight="600">原件库</text>
+<text x="620.0" y="159.0" text-anchor="middle" font-size="12.5" fill="#475569">按 sha256 存放，只增不删</text>
+<path d="M480 143 L518 143" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M260 174 L260 214" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M620 174 L620 214" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<text x="628" y="200" text-anchor="start" font-size="12" fill="#64748b">原件哈希</text>
+<rect x="40" y="214" width="680" height="96" rx="10" fill="#eef2ff" stroke="#4338ca" stroke-width="1.4"/>
+<text x="380.0" y="245.0" text-anchor="middle" font-size="17" font-weight="600" fill="#4338ca">Git 知识库</text>
+<text x="380.0" y="267.0" text-anchor="middle" font-size="15.5" fill="#475569">Markdown 正文 · 问答 · YAML 元数据</text>
+<text x="380.0" y="289.0" text-anchor="middle" font-size="15.5" fill="#475569">每份正文记录原件哈希和页码</text>
+<text x="380" y="340" text-anchor="middle" font-size="14" fill="#4338ca">分支 + PR → 审核 diff → 合并即发布</text>
+<path d="M200 310 L200 450" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M560 310 L560 450" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="40" y="450" width="320" height="86" rx="10" fill="#fff" stroke="#4338ca" stroke-width="1.4"/>
+<text x="200.0" y="476.0" text-anchor="middle" font-size="15" font-weight="600" fill="#4338ca">精确取文接口</text>
+<text x="200.0" y="498.0" text-anchor="middle" font-size="13.5" fill="#475569">按类型、语言、版本取整篇</text>
+<text x="200.0" y="520.0" text-anchor="middle" font-size="13.5" fill="#475569">启动时读仓库，内存索引</text>
+<rect x="400" y="450" width="320" height="86" rx="10" fill="#fff" stroke="#4338ca" stroke-width="1.4"/>
+<text x="560.0" y="476.0" text-anchor="middle" font-size="15" font-weight="600" fill="#4338ca">检索索引</text>
+<text x="560.0" y="498.0" text-anchor="middle" font-size="13.5" fill="#475569">片段 + 标题路径 + 页码</text>
+<text x="560.0" y="520.0" text-anchor="middle" font-size="13.5" fill="#475569">关键词 + 向量 → RRF → 重排</text>
+<path d="M200 536 L200 566" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M560 536 L560 566" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="110" y="566" width="180" height="40" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="200.0" y="591.0" text-anchor="middle" font-size="14" font-weight="600">问答机器人</text>
+<rect x="470" y="566" width="180" height="40" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4"/>
+<text x="560.0" y="591.0" text-anchor="middle" font-size="14" font-weight="600">搜索页</text>
+</svg>

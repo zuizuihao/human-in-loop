@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 视频工作台 · 原型</title>
+<!--
+  交互原型（纯前端、无依赖、双击即可打开），配色参考豆包。
+  - 右侧导演 Agent（总控）：理解需求 → 选 Skill → 出执行计划 → 调度子 Agent（编剧/角色/场景/分镜/视频）→ 审批门与预算。
+  - 中间画布是 Agent 的工作台：节点由 Agent 创建、自动排版、镜头自动跟随；人不需要手动操作画布。
+  - 点节点 = 把它 @ 进对话作为上下文；节点工具条上的操作也都交给导演执行。
+  所有生成和 Agent 回复都是模拟的。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/canvas.css">
+<link rel="stylesheet" href="css/orchestrator.css">
+<link rel="stylesheet" href="css/timeline.css">
+<link rel="stylesheet" href="css/library.css">
+<link rel="stylesheet" href="css/workspace.css">
+</head>
+<body>
+<div id="app">
+  <div id="top"><nav id="stagebar" data-cur="canvas"></nav></div>
+
+  <div id="stage">
+    <div id="cbar"><b id="projTitle">未命名</b><button class="chip tpl" id="skillChip" title="查看当前 Skill" hidden></button><button class="btn sm" id="btnTl">🎞️ 时间线 <b id="tlDur">0s</b> <span class="car">⌄</span></button><button class="chip mode" id="modeChip" title="切换样片 / 正片">样片 480p</button><span class="chip">画幅 <b id="arChip">9:16</b></span><span class="chip">已花 <b id="spent">¥0</b> / ¥<span id="budget"></span></span></div>
+    <div id="world"><div id="grid"></div><div id="frames"></div><svg id="wires"></svg></div>
+    <div id="empty"><div class="eico">✦</div><b>画布由 Agent 自动搭建</b><p>在右侧告诉导演 Agent 你想做什么视频，<br>它会调度子 Agent 在这里创建节点、生成素材。</p></div>
+    <div id="zoom"><button id="btnFit" title="适应画面">⛶ 适应</button><i class="zsep"></i><button id="zo">−</button><span id="zv">100%</span><button id="zi">+</button><button id="follow" class="on" title="镜头跟随 Agent">📍 跟随</button></div>
+    <div id="fly"><div class="fh"><b id="flyTitle"></b><button id="flyX" title="关闭">✕</button></div><div id="flyBody"></div></div>
+    <div id="tl">
+      <div class="bar"><b>分镜时间线</b><span class="chip">总长 <b id="totDur">0s</b></span><span class="sp"></span>
+        <button class="btn sm" id="btnPlay">▶ 预览成片</button><button class="btn sm" id="tlClose">收起 ⌃</button></div>
+      <div id="tracks"></div>
+    </div>
+  </div>
+
+  <aside id="orc">
+    <div class="oh">
+      <button class="ib back" id="oBack" title="返回导演 Agent" hidden>‹</button>
+      <span class="oav" id="oAv">🎬</span>
+      <div class="ot"><span class="crumb2" id="oCrumb" hidden>导演 Agent ›</span><b id="oName">导演 Agent</b><small id="oDesc"></small></div>
+      <a class="ib" id="oFull" href="asset.html" title="打开全屏工作室" hidden>⤢</a>
+      <button class="ib" id="oNew" title="新项目">✎</button>
+    </div>
+    <div class="team" id="team"></div>
+    <div class="stages" id="stages"></div>
+    <div class="skcard" id="skCard"></div>
+    <div class="pane2" id="oPane" hidden></div>
+    <div id="oBody"></div>
+    <div class="osugs" id="oSugs"></div>
+    <div class="composer">
+      <div class="octx" id="oCtx"></div>
+      <textarea id="oIn" rows="2"></textarea>
+      <div class="ctl">
+        <button class="ib" id="oAttach" title="上传图片，指定为资产参考图">📎</button>
+        <input type="file" id="oFile" accept="image/*" multiple hidden>
+        <select id="oSkill" title="场景 Skill"></select>
+        <span class="sp"></span>
+        <button class="send" id="oSend" title="发送">➤</button>
+      </div>
+    </div>
+  </aside>
+</div>
+<div id="toast"></div>
+<div id="lightbox" hidden><i></i><span></span></div>
+<div id="modal"><div class="card">
+  <div style="display:flex;align-items:center"><b style="flex:1">成片预览（模拟）</b><button class="btn sm" id="mclose">关闭</button></div>
+  <div class="scr" id="mscr"><div id="mpl">🎬</div><div class="sub" id="msub"></div></div>
+  <div id="mcap" style="text-align:center;color:var(--mute)"></div>
+</div></div>
+
+<script src="js/data.js"></script>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script src="js/stagebar.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/core.js"></script>
+<script src="js/nodes.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/generate.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/director.js"></script>
+<script src="js/dock.js"></script>
+<script src="js/orchestrator.js"></script>
+<script src="js/workspace.js"></script>
+<script src="js/flows.js"></script>
+<script src="js/library.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

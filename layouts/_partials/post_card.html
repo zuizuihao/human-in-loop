@@ -1,0 +1,20 @@
+<article class="home-card">
+  <div class="home-card__body">
+    <h3 class="home-card__title">{{ .Title }}</h3>
+    <p class="home-card__desc">{{ with .Description }}{{ . | plainify }}{{ else }}{{ .Summary | plainify | htmlUnescape | truncate 140 }}{{ end }}</p>
+    {{- with .GetTerms "tags" }}
+    <ul class="home-card__tags">
+      {{- range first 4 . }}<li>{{ .LinkTitle }}</li>{{- end }}
+    </ul>
+    {{- end }}
+    <footer class="home-card__meta">{{ partial "post_meta.html" . }}</footer>
+  </div>
+  {{- $alt := .Params.cover.alt | default "" }}
+  {{- with and .Params.cover.image (.Resources.GetMatch .Params.cover.image) }}
+  <figure class="home-card__cover">
+    {{- $thumb := .Fill "480x300 Center webp" }}
+    <img src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" loading="lazy" alt="{{ $alt }}">
+  </figure>
+  {{- end }}
+  <a class="home-card__link" aria-label="{{ .Title | plainify }}" href="{{ .Permalink }}"></a>
+</article>

@@ -1,0 +1,9 @@
+{{- /* 支持 GitHub 原生提示块：> [!NOTE] / [!TIP] / [!IMPORTANT] / [!WARNING] / [!CAUTION] */ -}}
+{{- if eq .Type "alert" -}}
+<blockquote class="gh-alert gh-alert-{{ .AlertType }}">
+  <p class="gh-alert-title">{{ or .AlertTitle (.AlertType | strings.FirstUpper) }}</p>
+  {{ .Text }}
+</blockquote>
+{{- else -}}
+<blockquote>{{ .Text }}</blockquote>
+{{- end -}}

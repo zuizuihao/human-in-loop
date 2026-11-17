@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 视频工作台</title>
+<!--
+  欢迎页：所有页面左上角的 ✦ 回到这里。一句话说想做什么，或者选一个场景 Skill 新建项目（在画布上从头走一遍）；也可以继续当前项目，
+  或者打开本地的项目文件夹（根目录有 project.yaml，格式见 docs/design/project-format.md）。
+  场景 Skill 决定默认集数：多集作品有系列层（总览、集切换器、资产库），单集作品直接进画布。
+-->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+<div id="home">
+  <header><span class="logo"><i>✦</i>AI 视频工作台</span><span class="sp"></span><span class="chip">原型 · 生成和 Agent 回复都是模拟的</span></header>
+  <main>
+    <section class="hero">
+      <h1>想做一条什么视频？</h1>
+      <p>说一句话，导演 Agent 会选一个场景 Skill，调度剧本、资产、分镜、视频 Agent 把它做出来；你只在审批门确认，或者提修改意见。</p>
+      <form id="ask"><input id="q" placeholder="例如：做一条 15 秒的榨汁杯种草视频" autocomplete="off"><button class="send" title="开始">➤</button></form>
+    </section>
+    <h3>或者选一种视频</h3>
+    <div class="skills" id="skills"></div>
+    <h3>继续</h3>
+    <div class="cont" id="cont"></div>
+  </main>
+</div>
+<script src="vendor/js-yaml.min.js"></script>
+<script src="projects/xiejiaoxing.bundle.js"></script>
+<script src="js/project/loader.js"></script>
+<script src="js/project/fs.js"></script>
+<script src="js/script/data.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/store.js"></script>
+<script src="js/skills.js"></script>
+<script>
+/* 欢迎页：场景 Skill 卡片 + 继续当前项目 + 打开本地项目 / 最近项目 */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+document.getElementById('skills').innerHTML=SKILLS.map(t=>`<a class="sk" href="index.html?new=${t.id}"><div class="skh"><span class="ic">${t.icon}</span><div><b>${t.name}</b><small>${t.tag}</small></div><em class="${t.eps==='单集'?'one':''}">${t.eps}</em></div>
+  <p>${esc(t.desc)}</p><div class="skf"><span>${t.spec.ar}</span><span>${t.spec.dur}</span><span>成本 ${t.spec.cost}</span><span class="ex">示例：${t.title}</span></div></a>`).join('');
+const M=STORE.matrix(),e1=M[0],done=e1.stages.filter(s=>s.st==='done').length,box=STORE.inboxAll().length;
+const WF=PROJECT.yaml('workflow.yaml')||{};
+document.getElementById('cont').innerHTML=`<div class="demo"><div class="dh"><span class="ic">🎨</span><div><b>《${SERIES.title}》</b><small>${esc(WF.name||'')} · ${STORE.EPS.length} 集 · ${PROJECT.local?`本地项目「${esc(PROJECT.name)}」`:'演示项目'}</small></div></div>
+  <p>${esc(SERIES.logline)}</p>
+  <div class="prog">${M.map(r=>`<span class="${r.stages.every(s=>s.st==='done')?'ok':r.stages.some(s=>s.st!=='none')?'wip':''}" title="${r.id} ${r.title}：${r.stages.map(s=>s.n+' '+s.s).join(' · ')}">${r.id.slice(2)}</span>`).join('')}</div>
+  <small>EP01《${e1.title}》做到 ${done}/${e1.stages.length} 个阶段${box?` · 待你处理 ${box} 件`:''}</small>
+  <div class="da"><a class="btn pri" href="index.html?e=EP01">继续 EP01</a><a class="btn" href="series.html">系列总览</a>${PROJECT.local?'<button class="btn" id="close">关闭，回到演示</button>':''}</div></div>
+  <div class="demo open"><div class="dh"><span class="ic">📂</span><div><b>打开本地项目</b><small>一个项目一个文件夹：project.yaml + 剧本 / 资产 / 分镜 / 视频</small></div></div>
+  <p>选一个项目文件夹，改动按 Ctrl+S 写回文件。演示项目可以在顶栏「💾 另存为」存成本地文件夹。需要 Chrome 或 Edge。</p>
+  <div class="recent" id="recent"></div>
+  <div class="da"><button class="btn pri" id="open">打开文件夹…</button></div></div>`;
+document.getElementById('open').onclick=()=>PROJECT_FS.open();
+if(PROJECT.local)document.getElementById('close').onclick=()=>PROJECT_FS.close();
+PROJECT_FS.recent().then(l=>{const el=document.getElementById('recent');if(!l.length)return;
+  el.innerHTML='<small>最近打开</small>'+l.slice(0,5).map((r,i)=>`<button data-i="${i}" title="重新打开「${esc(r.name)}」（需要再授权一次）"><b>《${esc(r.title||r.id)}》</b>${esc(r.name)}<i>${new Date(r.time).toLocaleDateString()}</i></button>`).join('');
+  el.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>PROJECT_FS.open(l[+b.dataset.i].handle))});
+document.getElementById('ask').onsubmit=e=>{e.preventDefault();const v=document.getElementById('q').value.trim();if(v)location.href='index.html?new=auto&q='+encodeURIComponent(v)};
+</script>
+</body>
+</html>

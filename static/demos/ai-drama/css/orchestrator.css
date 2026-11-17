@@ -1,0 +1,126 @@
+/* 右侧导演 Agent 面板 */
+#orc{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#orc .oh{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
+.oav{width:36px;height:36px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 6px 16px #6a5cff40;flex:none}
+#orc .ot{flex:1}#orc .ot b{display:block;font-size:14px}#orc .ot small{color:var(--mute);font-size:12px}
+.ib{width:32px;height:32px;border-radius:9px;font-size:15px;color:#4e5969;display:flex;align-items:center;justify-content:center;flex:none}
+.ib:hover{background:var(--panel2)}
+/* 子 Agent 团队 */
+.team{display:flex;gap:4px;padding:2px 12px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mate{display:flex;align-items:center;gap:5px;padding:3px 9px 3px 4px;border-radius:999px;background:var(--panel2);font-size:12px;color:#4e5969;position:relative}
+.mate .ma{width:20px;height:20px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px}
+.mate{cursor:pointer;border:1px solid transparent}
+.mate:hover{border-color:#d4d9ff}
+.mate.on{background:var(--text);color:#fff;font-weight:600}
+.mate.working:not(.on){background:var(--acc-soft);color:var(--acc);font-weight:600}
+.mate .ur{font-style:normal;font-size:10px;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;background:var(--err);color:#fff;padding:0 4px}
+.mate.working:after{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.25}}
+/* 消息流 */
+#oBody{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+#oBody>*{flex:none}
+.m{max-width:92%;white-space:pre-wrap}
+.m.me{align-self:flex-end;background:var(--acc);color:#fff;padding:8px 12px;border-radius:14px 14px 4px 14px}
+.m.me .mc{display:inline-block;background:#ffffff33;border-radius:6px;padding:0 6px;margin:0 4px 4px 0;font-size:12px}
+.m.me img{display:block;max-width:120px;border-radius:8px;margin-top:6px}
+.m.orc{background:var(--panel2);padding:8px 12px;border-radius:14px 14px 14px 4px}
+.m.sys{align-self:center;color:var(--mute);font-size:12px}
+.typing{display:inline-flex;gap:3px}.typing i{width:6px;height:6px;border-radius:50%;background:#b4b9c5;animation:bl 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+/* 卡片：计划 / 子 Agent 工作 / 审批 / 费用 / 选择 / 结果 */
+.card{align-self:stretch;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.card .ch{display:flex;align-items:center;gap:8px;padding:9px 12px;font-weight:600}
+.card .ch .av{width:24px;height:24px;border-radius:8px;background:var(--acc-soft);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.card .ch .t{flex:1;min-width:0}
+.card .ch .t small{display:block;font-weight:400;color:var(--mute);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .ch .s{font-size:11px;font-weight:500;color:var(--mute)}
+.card .cb{padding:0 12px 10px;font-size:12px;color:#4e5969}
+.card .cb li{list-style:none;padding:2px 0 2px 16px;position:relative}
+.card .cb li:before{content:"·";position:absolute;left:5px;font-weight:700}
+.card.gate{border-color:#ffd8a8;background:#fffbf5}
+.card.gate .ch .av{background:#fff1dc}
+.card.cost{border-color:#d4d9ff;background:#fafbff}
+.card.done-card{opacity:.85}
+.steps{padding:0 12px 6px}
+.step{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12px}
+.step .si{width:18px;text-align:center;flex:none;color:var(--mute)}
+.step.run .si{color:var(--acc)}.step.ok .si{color:var(--ok)}.step.gate .si{color:var(--warn)}
+.step .sa{flex:none}
+.step .sd{flex:1;color:#4e5969}.step .sd b{color:var(--text);font-weight:600}
+.step .sc{color:var(--mute);flex:none}
+.spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+.nlinks{display:flex;flex-wrap:wrap;gap:4px;padding:0 12px 10px}
+.nlink{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--panel2);color:#4e5969;cursor:pointer}
+.nlink:hover{background:var(--acc-soft);color:var(--acc)}
+.minis{display:flex;gap:6px;padding:0 12px 10px;flex-wrap:wrap}
+.mini{width:58px;cursor:pointer}
+.mini i{display:block;height:58px;border-radius:9px;background:var(--panel2) center/cover}
+.mini span{display:block;font-size:11px;color:#4e5969;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rows{padding:0 12px 6px;font-size:12px}
+.rows div{display:flex;justify-content:space-between;padding:2px 0;color:#4e5969}
+.rows div.tot{border-top:1px solid var(--line);margin-top:4px;padding-top:6px;color:var(--text);font-weight:600}
+.acts{display:flex;gap:6px;padding:0 12px 12px;flex-wrap:wrap}
+.acts .btn{padding:5px 12px;font-size:12px}
+.acts .res{font-size:12px;color:var(--ok);font-weight:600;padding:4px 0}
+/* 建议指令 */
+.osugs{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
+.osugs button{padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:#4e5969;transition:.15s;text-align:left}
+.osugs button:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+.osugs.start{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.osugs.start button{border-radius:12px;padding:8px 10px}
+.osugs.start button b{display:block;color:var(--text)}
+.osugs.start button small{color:var(--mute)}
+/* 输入框 */
+.composer{margin:0 12px 12px;border:1px solid var(--line);border-radius:16px;padding:8px 10px;transition:.15s}
+.composer:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px #4d6bfe1a}
+.octx{display:flex;flex-wrap:wrap;gap:4px}
+.octx:empty{display:none}
+.octx .c{display:inline-flex;align-items:center;gap:5px;max-width:200px;padding:2px 8px;border:1px solid var(--line);border-radius:9px;font-size:12px;font-weight:500}
+.octx .c span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.octx .c img{width:18px;height:18px;border-radius:4px;object-fit:cover}
+.octx .c .x{color:var(--mute);cursor:pointer;font-weight:400}
+.composer textarea{width:100%;border:0;outline:none;resize:none;font:inherit;font-size:14px;padding:8px 2px 4px;min-height:44px;max-height:120px;color:var(--text);background:none}
+.composer textarea::placeholder{color:#a9aeb8}
+.ctl{display:flex;align-items:center;gap:4px}
+.ctl select{border:0;background:var(--panel2);font:inherit;font-size:12px;color:#4e5969;padding:4px 6px;border-radius:8px;outline:none;cursor:pointer;max-width:170px}
+.ctl .sp{flex:1}
+.ctl .send{width:32px;height:32px;border-radius:10px;background:var(--grad);color:#fff;font-size:14px}
+.ctl .send:disabled{opacity:.4;cursor:default}
+/* 阶段条（导演 Skill 的诊断结果） */
+.stages{display:flex;align-items:center;flex-wrap:wrap;gap:3px;padding:8px 12px 0;font-size:11px}
+.stages:empty{display:none}
+.stages b{color:#c3c8d6;font-weight:400}
+.stg{padding:2px 7px;border-radius:999px;background:var(--panel2);color:var(--mute);white-space:nowrap}
+.stg i{font-style:normal;margin-left:2px}
+.stg.done{background:#e1f8f1;color:var(--ok)}.stg.todo,.stg.run{background:var(--acc-soft);color:var(--acc)}.stg.stale{background:#ffecee;color:var(--err)}
+/* 当前 Agent 的 Agent Skill 卡 */
+.skcard{margin:8px 12px 0;border:1px solid var(--line);border-radius:12px;font-size:12px;background:#fafbff}
+.skh{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer}
+.skh b{font-family:Consolas,monospace;font-size:12px}
+.skh span{color:var(--acc);font-size:11px;background:var(--acc-soft);border-radius:999px;padding:0 7px}
+.skh i{margin-left:auto;font-style:normal;color:var(--mute);transition:.15s}
+.skcard.open .skh i{transform:rotate(180deg)}
+.skb{display:none;padding:0 10px 8px;color:#4e5969}
+.skcard.open .skb{display:block}
+.skb>div{padding:3px 0}.skb em{font-style:normal;color:var(--mute);display:inline-block;width:36px}
+.skb ol,.skb ul{padding-left:52px}
+.hello{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;color:var(--mute);font-size:12px;padding:20px}
+.hello .hav{width:60px;height:60px;border-radius:20px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 8px 20px #6a5cff40}
+.hello h4{font-size:15px;color:var(--text);margin-top:4px}
+.osugs .slb{width:100%;font-size:11px;color:var(--mute);margin-bottom:-2px}
+.osugs .slb span{color:#4e5969}
+.osugs button.pri{background:var(--grad);color:#fff;border-color:transparent}
+.osugs button:disabled{opacity:.5;cursor:default}
+/* 进入子 Agent / 返回导演：同一面板内滑动切换 */
+#orc.in #oBody,#orc.in .oh,#orc.in .skcard{animation:slideIn .22s ease-out}
+#orc.back #oBody,#orc.back .oh,#orc.back .skcard{animation:slideBack .22s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateX(24px)}}
+@keyframes slideBack{from{opacity:0;transform:translateX(-24px)}}
+.ib.back{font-size:22px;color:var(--acc);margin-right:-4px}
+.crumb2{display:block;font-size:11px;color:var(--mute);cursor:pointer}
+.team .tlb{font-size:11px;color:var(--mute);align-self:center;margin-right:2px}
+.team[hidden]{display:none}
+.card .enter{cursor:pointer;color:var(--acc)}
+.card .enter:hover{text-decoration:underline}
+.golink{display:block;margin-top:6px;color:var(--acc);text-decoration:none;font-size:12px}
+.card a.enter{text-decoration:none}

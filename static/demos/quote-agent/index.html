@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>evquote · 对话式购车询价 · Conversational EV quote</title>
+  <!--
+    Conversational car-purchase quote prototype: the assistant turns a request into a small
+    set of controlled UI cards (needs, payment, trim options, details form, review, summary).
+    Car data is an approximate public-price sample (Xiaomi SU7, NIO ET5, BYD Seal) and prices
+    come from a mock pricing / finance service inside this file; intent understanding is a
+    handful of local rules. No network calls, no LLM, no persistence. Not affiliated with
+    any of the brands; check the official sites for real prices.
+    UI language: ?lang=en for English (default Simplified Chinese). ?tour=1 enables the
+    slide-deck mode used by the blog post (postMessage {tour:'step', id}).
+  -->
+  <style>
+    :root{--ink:#19392f;--muted:#758079;--green:#25634e;--lime:#d8ecac;--line:#e1e6de;--paper:#f7f8f3;--orange:#9a651d;--shadow:0 12px 40px #19392f09}
+    *{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--paper);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button,a,input,select,summary{outline-offset:4px}button{border:0}a{color:var(--green)}h1,h2,h3,p{margin:0}header{height:78px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 38px;background:#fff}.brand{display:flex;align-items:center;gap:12px}.brand-icon{width:37px;height:37px;border-radius:12px;background:var(--green);color:var(--lime);display:grid;place-items:center;font-size:23px}.brand strong{font-size:25px;letter-spacing:-1px}.brand small{border-left:1px solid var(--line);padding-left:15px;margin-left:10px;color:var(--muted)}.badge{font-size:11px;padding:5px 10px;border-radius:20px;background:#edf3e6;color:var(--green)}.top-actions{display:flex;align-items:center;gap:16px}.text-button{background:transparent;color:var(--green);padding:7px}.demo-strip{background:#eeefdf;border-bottom:1px solid #e3e5cd;text-align:center;padding:8px 20px;font-size:12px;color:#686a47}.layout{display:grid;grid-template-columns:370px minmax(0,1fr);height:calc(100dvh - 115px);min-height:640px}.assistant{background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}.assistant-head{padding:25px 24px 18px;border-bottom:1px solid var(--line)}.eyebrow{font-size:10px;letter-spacing:2px;color:var(--muted);font-weight:700}.assistant-title{display:flex;gap:12px;align-items:center;margin-top:12px}.avatar{flex-shrink:0;width:38px;height:38px;display:grid;place-items:center;background:#edf3e6;border-radius:50%;font-size:19px;color:var(--green)}.assistant-title h2{font-size:16px}.assistant-title p{font-size:11px;color:var(--muted)}.status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#60964a;margin-right:5px}.messages{overflow:auto;flex:1;padding:22px 22px 8px;scroll-behavior:smooth}.message{margin-bottom:19px;animation:enter .2s ease}.message-label{font-size:10px;color:var(--muted);margin:0 0 6px 2px}.bubble{background:#f4f6f0;border:1px solid #ecf0e5;border-radius:3px 15px 15px;padding:13px 15px;white-space:pre-wrap;line-height:1.9;font-size:13px}.message.user{margin-left:28px}.user .bubble{background:var(--green);color:#fff;border:0;border-radius:15px 3px 15px 15px}.user .message-label{text-align:right}.mini-event{font-size:11px;color:var(--green);padding:8px 10px;background:#eef5e5;margin-top:8px;border-radius:7px}.chat-bottom{padding:14px 20px 20px;border-top:1px solid var(--line)}.suggestions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.chip{padding:6px 10px;border:1px solid var(--line);background:#fff;border-radius:20px;color:var(--green);font-size:11px}.chip:hover{background:#edf3e6}.compose{border:1px solid #ccd7ca;border-radius:12px;padding:8px;display:flex;gap:5px}.compose input{width:100%;border:0;min-width:0;padding:5px;background:transparent;color:var(--ink)}.send{background:var(--green);color:white;border-radius:8px;width:34px;flex-shrink:0;font-size:17px}.chat-note{font-size:10px;color:var(--muted);margin-top:8px}.workspace{overflow:auto;padding:30px 42px 45px}.workspace-inner{max-width:1060px;margin:auto}.breadcrumb{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:23px}.live{font-size:10px;letter-spacing:1px}.title-row{display:flex;align-items:end;justify-content:space-between;margin-bottom:22px}.title-row h1{font-size:30px;letter-spacing:-1px;font-weight:650}.sub{color:var(--muted);font-size:12px;margin-top:5px}.session{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px}.steps{display:flex;align-items:center;gap:10px;margin-bottom:25px}.step{display:flex;gap:8px;align-items:center;font-size:12px;color:#939c94}.step i{font-style:normal;width:23px;height:23px;background:#e8ece3;border-radius:50%;display:grid;place-items:center;font-size:11px}.step.active{color:var(--green);font-weight:600}.step.active i,.step.done i{background:var(--green);color:#fff}.step-line{height:1px;background:var(--line);width:45px}.panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:23px;margin-bottom:19px;box-shadow:var(--shadow)}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:19px}.panel h2{font-size:15px}.panel h3{font-size:13px}.pill{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:3px 7px}.config{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:16px}.field{display:flex;flex-direction:column;gap:7px;font-size:11px;color:#65776b}.field input,.field select{width:100%;height:42px;border:1px solid var(--line);border-radius:8px;padding:0 11px;background:#fff;color:var(--ink)}.field input:focus,.field select:focus{border-color:var(--green)}.counter{height:42px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 7px;color:var(--ink)}.counter button{width:27px;height:27px;border-radius:6px;background:#f2f5ee;color:var(--green);font-size:17px}.config-bottom{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eef0ea;margin-top:20px;padding-top:16px;gap:12px}.config-meta{font-size:11px;color:var(--muted)}.primary{background:var(--green);color:#fff;border-radius:8px;padding:11px 20px;font-weight:500;white-space:nowrap}.primary:hover{background:#194e3c}.secondary{border:1px solid #ccd8c8;background:white;color:var(--green);border-radius:8px;padding:9px 16px}.notice{background:#f1f5e7;border:1px solid #e0e8ca;border-radius:9px;padding:12px 15px;font-size:12px;display:flex;gap:10px;margin-bottom:20px}.notice.warning{background:#fff6e8;border-color:#efdfc3;color:#8d601f}.notice-icon{font-size:17px}.results-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.results-title h2{font-size:16px}.toggle{display:flex;background:#e9ede3;border-radius:7px;padding:3px}.toggle button{font-size:11px;padding:6px 12px;border-radius:5px;color:var(--muted);background:transparent}.toggle button.on{background:#fff;color:var(--green);box-shadow:0 1px 5px #0000000a}.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.plan{background:#fff;border:1px solid var(--line);border-radius:12px;padding:21px 17px;position:relative;cursor:pointer;transition:transform .15s,border-color .15s}.plan:hover{transform:translateY(-3px);border-color:#9bb98c}.plan.selected{border:2px solid var(--green);padding:20px 16px;background:#fafdf6}.plan-kicker{font-size:10px;color:var(--muted);letter-spacing:1px}.plan h3{font-size:16px;margin:6px 0 12px}.price{font-size:32px;font-weight:650;letter-spacing:-1px;line-height:1.2}.price small{font-size:12px;letter-spacing:0;font-weight:400}.price-caption{font-size:10px;color:var(--muted);margin-top:5px;min-height:32px}.plan hr{border:0;border-top:1px solid var(--line);margin:15px 0}.benefit{font-size:11px;color:var(--muted);margin:12px 0}.benefit strong{display:block;color:var(--ink);font-size:17px;font-weight:550;margin-top:3px}.select-plan{width:100%;padding:9px;background:#f0f4e9;color:var(--green);border-radius:7px;font-size:12px;margin-top:6px}.selected .select-plan{background:var(--green);color:#fff}.option-tag{position:absolute;right:11px;top:15px;font-size:9px;border-radius:4px;padding:2px 6px;background:var(--lime)}.family{grid-template-columns:1fr}.family .plan{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;align-items:center}.family .plan hr{display:none}.family .plan .select-plan{grid-column:1/-1}.quote-footer{display:flex;justify-content:space-between;align-items:center;margin:15px 0 20px;font-size:11px;color:var(--muted);gap:10px}.quote-footer button{font-size:11px;background:transparent;color:var(--green);padding:5px 0}.disclaimer{font-size:11px;color:var(--muted);line-height:1.9}.bottom-bar{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:20px;margin-top:22px;gap:15px}.bottom-label{font-size:11px;color:var(--muted)}.bottom-value{font-size:18px;font-weight:600}.empty{text-align:center;padding:45px 20px;border:1px dashed #cbd6c3;border-radius:12px;background:#f0f3ea;color:var(--muted)}.empty-symbol{font-size:28px;color:#739563;margin-bottom:8px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.span-two{grid-column:1/-1}.check{display:flex;align-items:flex-start;gap:10px;font-size:12px;margin-top:16px}.check input{margin-top:4px;accent-color:var(--green)}.error{color:#a0402a;font-size:12px;min-height:20px;margin-top:10px}.review-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;gap:20px}.review-row span{color:var(--muted)}.success{text-align:center;padding:30px 15px}.success-icon{width:65px;height:65px;border-radius:50%;background:#e5efda;display:grid;place-items:center;margin:0 auto 18px;font-size:30px;color:var(--green)}.success h2{font-size:24px}.success p{margin:12px auto;color:var(--muted);max-width:470px}.success .secondary{margin-top:16px}footer{font-size:10px;color:#8b958c;display:flex;justify-content:space-between;margin-top:28px;gap:15px}dialog{border:1px solid var(--line);border-radius:17px;padding:25px;max-width:850px;width:calc(100% - 32px);max-height:85dvh;color:var(--ink);box-shadow:0 25px 100px #102d2733}dialog::backdrop{background:#18392e55;backdrop-filter:blur(4px)}.dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.close{font-size:20px;color:var(--muted);background:transparent}.table-scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line);white-space:nowrap}th{background:#f1f5e9;font-weight:500}pre{padding:18px;border-radius:10px;background:#17352d;color:#dcf0cf;overflow:auto;max-height:43dvh;font-size:11px;white-space:pre-wrap;word-break:break-word}.architecture{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}.architecture div{border:1px solid var(--line);padding:13px;border-radius:9px;font-size:12px}.architecture small{display:block;color:var(--muted);margin-top:6px}.hide{display:none!important}@keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}@media(min-width:1500px){.layout{grid-template-columns:410px 1fr}.assistant-head{padding-left:30px}.workspace{padding:38px 65px}}@media(max-width:1100px){.layout{grid-template-columns:315px minmax(0,1fr)}.workspace{padding:25px 22px}.config{gap:9px}.plans{gap:8px}.plan{padding:18px 12px}.plan.selected{padding:17px 11px}.price{font-size:27px}.brand small{display:none}.option-tag{position:static;display:inline-block;margin-bottom:5px}.session{display:none}}@media(max-width:800px){header{height:64px;padding:0 18px}.top-actions{gap:5px}.top-actions .badge{display:none}.demo-strip{font-size:10px}.layout{display:flex;flex-direction:column;height:auto;min-height:0}.assistant{border-right:0;border-bottom:1px solid var(--line)}.assistant-head{padding:15px 20px}.assistant-head .eyebrow{display:none}.assistant-title{margin:0}.messages{max-height:270px;min-height:160px;padding:17px 20px}.chat-bottom{padding:12px 20px}.workspace{overflow:visible;padding:23px 16px}.title-row h1{font-size:25px}.breadcrumb{margin-bottom:15px}.plans{grid-template-columns:1fr}.plan{padding:20px}.plan.selected{padding:19px}.price-caption{min-height:0}.plan .benefit{display:inline-block;width:49%;vertical-align:top}.option-tag{position:absolute}.family .plan{display:block}.family .plan .benefit{display:block;width:auto}.config{grid-template-columns:1fr 1fr}.config .field:last-child{grid-column:1/-1}.form-grid{grid-template-columns:1fr}.span-two{grid-column:auto}.architecture{grid-template-columns:1fr}.quote-footer{align-items:flex-start}.title-row{margin-bottom:18px}.session{display:none}footer{flex-direction:column;gap:3px}.config-bottom{align-items:flex-end}.config-meta{max-width:60%}}
+    /* Conversation surfaces share the transcript, with one active interaction at a time. */
+    body{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+    header{height:68px;flex-shrink:0}.demo-strip{flex-shrink:0}
+    .layout{display:flex;flex:1;height:auto;min-height:0;justify-content:center;overflow:hidden}
+    .assistant{width:100%;max-width:980px;background:transparent;border:0;min-width:0}
+    .assistant-head{padding:17px 30px 13px;background:var(--paper);flex-shrink:0;border-bottom:1px solid var(--line)}
+    .assistant-title{margin:0}.assistant-heading{display:flex;justify-content:space-between;align-items:center;gap:15px}
+    .assistant-title h1{font-size:16px;letter-spacing:0;font-weight:650}
+    .assistant-title .sub{font-size:11px;margin:0}
+    .steps{margin:14px 0 0;padding-left:50px;gap:12px}.step-line{width:50px}
+    .context-summary{font-size:11px;color:var(--green);text-align:right}
+    .messages{padding:25px 30px 35px;min-height:0;max-height:none;overflow:auto;scroll-behavior:auto;overflow-anchor:none}
+    .message{max-width:720px;margin-bottom:20px}
+    .message.user{max-width:460px;margin-left:auto}
+    .bubble{display:inline-block;background:#fff;border-color:var(--line);font-size:14px;padding:14px 18px}
+    .user .bubble{display:block}.mini-event{display:inline-block;background:transparent;padding:4px 0;font-size:10px}
+    #surface{margin:0 0 20px;scroll-margin-top:18px}
+    .surface-label{font-size:10px;letter-spacing:1px;color:var(--muted);margin:0 0 10px 2px}
+    .surface-body{background:#fff;border:1px solid var(--line);border-radius:3px 18px 18px;padding:22px;box-shadow:var(--shadow)}
+    .surface-body>.panel{border:0;box-shadow:none;padding:0;margin:0}
+    .surface-body>.notice{margin-bottom:18px}
+    .surface-body>.empty{padding:22px;margin-top:16px}
+    .panel-head{gap:10px}.panel-head .pill{font-size:10px}
+    .needs-summary{border:1px solid var(--line);background:#f8faf4;border-radius:9px;margin-bottom:22px}
+    .needs-summary summary{cursor:pointer;padding:12px 15px;font-size:12px}
+    .needs-summary .panel{border:0;box-shadow:none;margin:0;padding:16px;background:transparent}
+    .results-title h2{font-size:15px}.plan{cursor:default}
+    .chat-bottom{flex-shrink:0;background:var(--paper);padding:13px 30px 16px}
+    .compose{background:#fff;box-shadow:var(--shadow);padding:10px}
+    .compose input{padding:6px 8px}.send{width:37px}.chat-note{text-align:center}
+    .history-card{border:1px solid var(--line);background:#f1f5eb;border-radius:10px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+    .history-card strong{font-size:12px}.history-card p{font-size:11px;color:var(--muted);margin-top:3px}
+    .history-card button{background:#fff;color:var(--green);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:11px;white-space:nowrap}
+    .history-status{font-size:10px;color:var(--muted)}.history-card.stale{background:#f4f2eb;border-style:dashed}
+    .history-card.stale .history-status{color:var(--orange)}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+    .intent-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+    .intent-tile{text-align:left;padding:20px;border:1px solid var(--line);border-radius:12px;background:#fafcf6;color:var(--ink);transition:border-color .15s,background .15s}
+    .intent-tile:hover{border-color:var(--green);background:#f0f6e5}.intent-tile b{display:block;font-size:16px;margin:10px 0 4px}.intent-tile span{font-size:12px;color:var(--muted)}
+    .intent-icon{font-size:24px;color:var(--green)}.helper-line{font-size:11px;color:var(--muted);margin:10px 0}
+    .usage-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+    .usage-choice{background:#f7f9f2;color:var(--green);border:1px solid var(--line);border-radius:9px;padding:12px 8px;font-size:12px}
+    .usage-choice.on{border-color:var(--green);background:#edf5df}
+    .filter-bar{display:flex;align-items:center;gap:8px;margin:13px 0 17px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+    .filter-bar .chip.on{background:var(--green);border-color:var(--green);color:white}
+    .match-note{background:#f0f5e7;padding:8px 11px;border-radius:7px;margin:0 0 14px;font-size:11px;color:var(--green)}
+    .plan .benefit{margin:8px 0}.plan hr{margin:10px 0}.plan .benefit strong{font-size:16px}
+    .plans.two-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .plans.one-option:not(.family){grid-template-columns:1fr;max-width:520px}
+    .plan-detail{font-size:11px;border-top:1px solid var(--line);padding-top:10px;margin:12px 0}.plan-detail summary{cursor:pointer;color:var(--green)}
+    .plan-detail p{color:var(--muted);margin-top:7px}.plan .select-plan{padding:10px 6px}
+    .source-detail{font-size:11px;color:var(--muted);margin-top:14px}.source-detail summary{cursor:pointer}.source-detail p{padding:10px 0}
+    .draft{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #d5e0c8;background:#f5f8ee;border-radius:10px;padding:13px 16px;margin-bottom:20px}
+    .draft strong{font-size:14px}.draft small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.draft-price{font-size:20px;font-weight:600;white-space:nowrap}
+    .draft .text-button{font-size:11px;padding:0;margin-top:5px}
+    .edit-row{display:flex;gap:10px;justify-content:flex-end;margin-bottom:15px}
+    .edit-row button{font-size:11px;padding:6px 10px}.result-count{font-size:11px;color:var(--muted);margin-bottom:13px}
+    .quote-progress{display:flex;align-items:center;gap:15px;padding:15px;font-size:12px;background:#f4f7ed;border-radius:10px}
+    .spinner{height:20px;width:20px;border:2px solid #d5e0c6;border-top-color:var(--green);border-radius:50%;animation:spin 1s linear infinite}
+    .new-update{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);border:1px solid var(--line);background:var(--green);color:white;border-radius:30px;font-size:11px;padding:9px 16px;box-shadow:0 4px 20px #19392f25}
+    .transcript-shell{position:relative;display:flex;flex:1;min-height:0}.transcript-shell .messages{width:100%}
+    .reference-card{border:1px solid var(--line);padding:16px;border-radius:10px;margin-bottom:12px}.reference-card h3{margin-bottom:6px}.reference-card p{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .needs-summary{margin-bottom:14px}.needs-summary summary{padding:10px 13px}
+    .filter-bar{margin:9px 0 12px}.match-note{margin-bottom:10px}
+    .plan{padding:16px}.plan h3{font-size:15px;margin:4px 0 8px}.price{font-size:28px}
+    .price-caption{min-height:0;margin-top:3px}.plan hr{margin:9px 0}
+    .plans:not(.family) .plan>div:first-child{display:grid;grid-template-columns:1fr auto;column-gap:8px}
+    .plans:not(.family) .plan-kicker{grid-column:1;grid-row:1}
+    .plans:not(.family) .plan h3{grid-column:1;grid-row:2}
+    .plans:not(.family) .price{grid-column:2;grid-row:1/3;align-self:center}
+    .plans:not(.family) .price-caption{grid-column:1/-1}
+    .plan .benefit{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:7px 0;font-size:10px}
+    .plan .benefit strong{font-size:15px;white-space:nowrap;margin:0}
+    .family .plan .benefit{display:block}.family .plan .benefit strong{margin-top:5px}
+    .plan-detail{margin:8px 0;padding-top:8px}
+    .payment-choices{display:grid;gap:12px;margin:18px 0 12px}
+    .payment-choice{display:flex;align-items:center;gap:16px;width:100%;text-align:left;border:1px solid var(--line);border-radius:12px;padding:18px;background:#fafcf6;color:var(--ink)}
+    .payment-choice:hover{border-color:var(--green);background:#eff6e4}.payment-choice .payment-icon{display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;border-radius:12px;background:#e8f0db;font-size:13px;font-weight:650}
+    .payment-choice strong{display:block;font-size:17px}.payment-choice small{display:block;font-size:12px;color:var(--muted);margin-top:3px}.payment-choice .arrow{margin-left:auto;font-size:20px}
+    .payment-receipt{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:16px;font-size:12px}
+    .payment-receipt button{color:var(--green);background:#f0f5e7;padding:8px 13px;border-radius:8px}
+    .annual-note{font-size:12px;color:var(--muted);padding:13px;border:1px dashed #d1daca;border-radius:9px;margin:14px 0}
+    button,input,select{touch-action:manipulation}
+    @media(max-width:800px){
+      header{height:54px}.brand strong{font-size:22px}.brand-icon{width:30px;height:30px}.top-actions{gap:0}
+      .top-actions button{min-height:44px;font-size:10px;padding:5px 7px}
+      .demo-strip{padding:5px 12px;font-size:9px;line-height:1.5}
+      .assistant-head{padding:9px 14px}.context-summary{max-width:100px;font-size:9px}
+      .messages{padding:14px 10px 24px}.surface-body{padding:14px}.surface-label{font-size:9px}
+      .steps{gap:5px;margin-top:8px}.step-line{width:12px}.step{font-size:9px}
+      .chip,.primary,.secondary,.text-button,.select-plan,.usage-choice,.history-card button{min-height:44px;min-width:44px}
+      .config{grid-template-columns:1fr}
+      .counter{height:48px;padding:0 2px}.counter button{width:44px;height:44px;flex-shrink:0}
+      .field input,.field select{height:48px;font-size:16px;min-width:0}
+      .field{min-width:0}.form-grid{gap:13px}.form-grid>label{font-size:12px}
+      summary{min-height:44px;display:list-item;align-content:center}.needs-summary summary{padding:10px;font-size:11px}
+      .suggestions{flex-wrap:nowrap;overflow-x:auto;gap:8px;padding-bottom:2px;scrollbar-width:none;overscroll-behavior-x:contain}
+      .suggestions .chip{flex-shrink:0;white-space:nowrap;font-size:11px;padding:8px 13px}
+      .chat-bottom{padding:8px 12px max(8px,env(safe-area-inset-bottom))}.compose{padding:5px}
+      .compose input{font-size:16px;min-height:44px}.send{width:44px;height:44px}
+      .chat-note{font-size:8px;margin-top:5px}.check{gap:12px}.check input{width:22px;height:22px;flex-shrink:0}
+      .check{min-height:44px}.bottom-bar{gap:10px}.bottom-bar .primary{width:100%;order:-1}
+      .bottom-bar .secondary{width:100%}.plan .select-plan{width:100%;font-size:13px}
+      .plans,.plans.two-options,.plans.one-option:not(.family){display:grid;grid-template-columns:1fr;max-width:none;gap:12px}
+      .plan{padding:14px}.plan .benefit{font-size:10px;gap:7px}.plan .benefit strong{font-size:14px}
+      .family .plan{display:block}.family .plan .benefit{display:block}
+      .plan-kicker{font-size:9px;letter-spacing:.6px}.plans:not(.family) .price{font-size:25px}
+      .payment-choice{min-height:82px;padding:12px;gap:12px}.payment-choice strong{font-size:16px}.payment-choice small{font-size:11px}
+      .payment-receipt{gap:8px;margin-bottom:12px}.payment-receipt button{min-height:44px;white-space:nowrap}
+      .quote-footer{align-items:center}.quote-footer button{min-height:44px;flex-shrink:0}
+      dialog[open]{position:fixed;inset:auto 0 0;width:100%;max-width:none;max-height:88dvh;margin:0;border-radius:18px 18px 0 0;padding:16px 16px max(20px,env(safe-area-inset-bottom));overflow:auto}
+      .dialog-head{position:sticky;top:-16px;background:#fff;z-index:1;padding:9px 0;gap:8px}.dialog-head h2{font-size:16px}
+      .close{min-width:44px;min-height:44px}.table-scroll{overscroll-behavior-x:contain}
+      .draft{flex-wrap:wrap}.draft-price{font-size:19px}.draft .text-button{display:flex;align-items:center}
+      .results-title h2{font-size:16px}.filter-bar{gap:7px}.filter-bar>span{width:100%}
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:800px){
+      body{height:100dvh}header{height:60px;padding:0 14px}.top-actions{font-size:11px}
+      .demo-strip{font-size:10px;padding:6px 14px}.layout{display:flex;min-height:0}
+      .assistant{border:0}.assistant-head{padding:12px 16px}
+      .assistant-title h1{font-size:14px}.assistant-title .sub{font-size:10px}
+      .avatar{width:30px;height:30px}.assistant-title{gap:8px}.context-summary{font-size:10px;max-width:110px}
+      .steps{padding-left:0;gap:7px;margin-top:12px}.step{font-size:10px;gap:5px}.step i{width:20px;height:20px}.step-line{width:20px}
+      .messages{min-height:0;max-height:none;padding:18px 14px 25px}
+      .surface-body{padding:15px;border-radius:3px 13px 13px}.message{margin-bottom:17px}.message.user{margin-left:38px}
+      .bubble{font-size:13px}.chat-bottom{padding:10px 14px}.suggestions{margin-bottom:9px;gap:5px}.chip{font-size:10px;padding:5px 8px}
+      .chat-note{font-size:9px}.results-title{gap:8px}.results-title h2{font-size:13px}
+      .toggle button{padding:5px 9px}.bottom-bar{align-items:flex-start;flex-wrap:wrap}
+      .bottom-value{font-size:14px}.panel-head{align-items:flex-start}.panel-head .pill{display:none}
+      .config-bottom{align-items:center}.config-meta{font-size:10px}.primary{font-size:12px;padding:10px 13px}
+      .intent-tile{padding:14px}.intent-tile b{font-size:14px}.usage-options{grid-template-columns:1fr}.usage-choice{padding:10px}
+      .draft{padding:11px;gap:8px}.draft-price{font-size:17px}.draft strong{font-size:12px}
+      .plans.two-options{grid-template-columns:1fr}
+      .plan .benefit{display:flex;width:100%}.family .plan .benefit{display:block}
+    }
+    .needs-editor .config{display:flex;flex-direction:column;gap:12px}
+    .needs-editor .people-row{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;margin:0}
+    .needs-editor .people-row>span{flex:1;min-width:0}
+    .needs-editor .counter{width:132px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+    .needs-editor .counter button{min-width:44px;min-height:44px}
+    .needs-editor .counter span{min-width:32px;text-align:center}
+    .needs-editor .config-bottom{flex-wrap:wrap;gap:8px}
+    .needs-editor .edit-note{font-size:12px;line-height:1.7;margin-top:12px;padding:10px;border-radius:8px;background:#f0f5e7}
+    .quote-stale{opacity:.45}
+    .quote-result{padding:18px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .quote-result h2{font-size:19px;margin:6px 0 10px}
+    .quote-result .result-summary{font-size:13px;font-weight:600;margin:10px 0}
+    .quote-result ul{padding-left:20px;font-size:12px;line-height:1.8}
+    .quote-result .result-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .quote-result button,.quote-result .text-button{min-height:44px}
+    .flow-inactive .steps{opacity:.55}
+    .dock-more{position:relative;flex:0 0 auto}
+    .dock-more>summary{list-style:none;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--green);font-size:12px}
+    .dock-more>summary::-webkit-details-marker{display:none}
+    .dock-more .dock-menu{position:absolute;top:48px;right:0;z-index:5;width:190px;padding:5px;border:1px solid var(--line);border-radius:10px;background:white;box-shadow:0 6px 25px #19392f20}
+    .dock-menu button{display:block;width:100%;text-align:left;background:white;color:var(--green);min-height:44px;padding:9px 12px}
+    .version{font-size:10px;background:#edf3e6;color:var(--green);padding:4px 7px;border-radius:6px;white-space:nowrap}
+    .card-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+    .card-actions button{min-height:44px;min-width:44px}
+    .application-summary{max-width:920px;margin:0 auto}
+    .application-summary .receipt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+    .application-summary h2{font-size:22px;margin:4px 0}
+    .application-summary .receipt-price{font-size:23px;font-weight:700;color:var(--green);white-space:nowrap}
+    .application-summary .receipt-price small{display:block;font-size:11px;font-weight:400;text-align:right}
+    .receipt-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:18px}
+    .receipt-grid h3{font-size:14px;margin:0 0 8px}
+    .receipt-facts{margin:0}
+    .receipt-facts>div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+    .receipt-facts dt{color:var(--muted)}
+    .receipt-facts dd{margin:0;overflow-wrap:anywhere}
+    .application-status{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .application-status li{padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:#fafbf8}
+    .application-status strong,.application-status span{display:block}
+    .application-status span{font-size:11px;color:var(--muted);margin-top:4px}
+    .application-summary .receipt-next{margin-top:18px;padding:12px;background:#f0f5e7;border-radius:8px;font-size:12px}
+    @media(max-width:800px){.receipt-grid{grid-template-columns:1fr;gap:18px}.application-summary h2{font-size:19px}.application-summary .receipt-price{font-size:20px}.application-status{grid-template-columns:1fr 1fr}.receipt-facts>div{grid-template-columns:95px minmax(0,1fr)}}
+    .chat-bottom .suggestions:empty{display:none}
+    @media(max-width:800px){.quote-result{padding:14px}.quote-result .result-actions{flex-direction:column}.quote-result .result-actions button{width:100%}}
+    /* Keep persistent chrome compact; reserve the viewport for conversational surfaces. */
+    header{height:58px;padding:0 max(24px,calc((100vw - 1180px)/2));gap:16px}
+    .brand-icon{height:32px;width:32px}.brand strong{font-size:23px}
+    .brand small{font-size:12px;padding-left:13px;margin-left:4px}
+    .top-actions{gap:8px}.top-actions>button{min-height:44px;font-size:12px}
+    .tools-menu{position:relative}.tools-menu>summary{list-style:none;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;font-size:12px;cursor:pointer;border-radius:8px;padding:0 12px;color:var(--green)}
+    .tools-menu>summary::-webkit-details-marker{display:none}.tools-menu[open]>summary{background:#eaf1e1}
+    .tools-popover{position:absolute;right:0;top:48px;z-index:5;min-width:175px;border:1px solid var(--line);border-radius:11px;padding:6px;background:#fff;box-shadow:0 10px 35px #19392f1a}
+    .tools-popover button{display:block;width:100%;text-align:left;min-height:44px;font-size:12px;padding:9px 12px;border-radius:6px;background:#fff;color:var(--green)}
+    .tools-popover button:hover{background:#f0f5e7}
+    .demo-strip{padding:0 16px;min-height:26px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;line-height:1.4}
+    .demo-strip button{background:transparent;color:inherit;text-decoration:underline;min-width:44px;min-height:26px;font-size:10px;padding:0 5px}
+    .layout{flex-direction:row;align-items:stretch}
+    .assistant{max-width:1180px;min-width:0;height:100%}
+    .assistant-head{padding:0 26px;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+    .assistant-heading{display:contents}.assistant-title{display:none}
+    .context-summary{order:2;text-align:right;font-size:11px;max-width:390px}
+    .steps{padding:0;margin:0;gap:12px;flex-shrink:0}.step-line{width:32px}
+    .messages{padding:22px 26px 26px}.message{margin-bottom:14px;max-width:770px}
+    .bubble{padding:11px 15px;line-height:1.75;font-size:13px}
+    .message-label{font-size:9px;margin-bottom:4px}
+    .surface-label{font-size:9px;letter-spacing:.5px;margin-bottom:7px}
+    #surface{margin-bottom:0}.surface-body{padding:18px;border-radius:3px 14px 14px}
+    .chat-bottom{padding:8px 26px max(10px,env(safe-area-inset-bottom))}
+    .compose{padding:5px;border-radius:12px}.compose input{font-size:14px;min-height:38px}
+    .send{width:40px;height:40px}.chat-note{margin-top:4px;font-size:9px}
+    .suggestions{margin-bottom:6px;gap:7px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+    .suggestions:empty{display:none}.suggestions .chip{flex-shrink:0;font-size:11px;padding:5px 11px}
+    .needs-summary{margin-bottom:10px}.needs-summary>summary{padding:9px 12px}
+    .payment-choices{grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 10px}
+    .payment-choice{padding:15px;min-height:86px}.payment-choice .payment-icon{width:36px;height:36px;font-size:12px}
+    .payment-choice strong{font-size:16px}.payment-choice small{font-size:11px}
+    .intent-grid{margin:14px 0}.intent-tile{padding:16px}.intent-tile b{margin:6px 0 3px}
+    .payment-receipt{padding-bottom:8px;margin-bottom:10px}.results-title{margin-bottom:8px}
+    .filter-bar{margin:7px 0 10px}.match-note{padding:6px 10px}
+    .plan .option-tag{position:static;grid-column:1;grid-row:1;justify-self:start;margin-bottom:3px}
+    .plan:has(.option-tag) .plan-kicker{display:none}
+    .source-detail{margin-top:10px}.quote-footer{margin:9px 0 6px}
+    .draft{padding:12px 14px;margin-bottom:14px}.draft small{margin-top:2px}
+    @media(min-width:1200px){
+      .surface-body{padding:22px}.plans.one-option:not(.family){max-width:none}
+      .plans.one-option:not(.family) .plan{max-width:600px}
+    }
+    @media(max-width:800px){
+      header{height:50px;padding:0 12px;gap:8px}.brand{gap:8px}.brand strong{font-size:21px}.brand small{display:none}
+      .brand-icon{width:29px;height:29px;border-radius:9px;font-size:20px}
+      .top-actions{gap:3px}.top-actions>button{font-size:11px;padding:0 9px;min-width:44px}
+      .tools-menu>summary{font-size:11px;padding:0 9px}
+      .demo-strip{min-height:26px;font-size:10px;padding:0 8px;gap:0;white-space:nowrap}
+      .assistant-head{min-height:44px;padding:0 14px;justify-content:center}
+      .context-summary{display:none}.steps{width:100%;justify-content:space-between;gap:5px}
+      .step{gap:6px;font-size:11px}.step i{height:20px;width:20px;font-size:10px}.step-line{width:auto;flex:1;max-width:36px}
+      .messages{padding:14px 10px 20px}.message{margin-bottom:12px}.message.user{margin-left:40px}
+      .message-label{margin-bottom:3px}.bubble{padding:10px 12px;font-size:13px;line-height:1.7}
+      .surface-body{padding:12px;border-radius:3px 12px 12px}.surface-label{font-size:9px;letter-spacing:0;margin-bottom:6px}
+      .chat-bottom{padding:6px 10px max(6px,env(safe-area-inset-bottom))}
+      .compose{padding:3px;border-radius:11px}.compose input{font-size:16px;padding:5px 9px;min-height:44px}
+      .send{height:44px;width:44px}.chat-note{font-size:9px;margin-top:3px}
+      .suggestions{margin-bottom:5px;padding:0;gap:7px}.suggestions .chip{font-size:11px;padding:6px 12px;min-height:44px}
+      .needs-summary>summary{min-height:44px;padding:8px 10px}
+      .payment-choices{grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+      .payment-choice{min-height:118px;display:grid;grid-template-columns:1fr auto;gap:5px;padding:12px;align-content:start}
+      .payment-choice .payment-icon{width:28px;height:28px;font-size:11px;border-radius:8px}
+      .payment-choice>span:nth-child(2){grid-column:1/-1;grid-row:2}
+      .payment-choice .arrow{grid-column:2;grid-row:1;font-size:17px}
+      .payment-choice strong{font-size:16px}.payment-choice small{font-size:11px;line-height:1.6;margin-top:2px}
+      .payment-receipt{font-size:11px;padding:0 0 7px;margin-bottom:10px}
+      .payment-receipt button{padding:7px 9px;min-width:44px;min-height:44px}
+      .results-title h2{font-size:15px}.results-title{margin-bottom:7px}.results-title .pill{font-size:9px}
+      .filter-bar{gap:6px;margin:6px 0 9px}.filter-bar>span{width:auto;font-size:10px}
+      .filter-bar .chip{padding:6px 9px;font-size:10px}
+      .plans,.plans.two-options,.plans.one-option:not(.family){gap:10px}
+      .plan{padding:12px}.plan h3{margin:2px 0 3px;font-size:15px}
+      .plans:not(.family) .price{font-size:26px}.price-caption{font-size:9px;margin-top:2px}
+      .plan .benefit{margin:5px 0;font-size:10px}.plan .benefit strong{font-size:14px}
+      .plan hr{margin:7px 0}.plan-detail{margin:5px 0;padding-top:0}
+      .plan-detail summary{min-height:44px;font-size:11px}
+      .plan .select-plan{margin:0;min-height:44px;padding:7px;font-size:12px}
+      .quote-footer{margin:7px 0 3px;gap:8px;font-size:10px}.quote-footer button{font-size:10px}
+      .source-detail{margin-top:6px;font-size:10px}
+      .helper-line{margin:7px 0;font-size:11px}.disclaimer{font-size:10px;line-height:1.7}
+      .panel-head{margin-bottom:12px}.panel h2{font-size:14px}
+      .intent-grid{gap:8px;margin:12px 0}.intent-tile{padding:12px}.intent-tile b{font-size:14px}.intent-tile span{font-size:11px}
+      .draft{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;padding:11px;margin-bottom:12px}
+      .draft strong{font-size:12px}.draft-price{font-size:18px}.draft small{font-size:9px}.draft .eyebrow{font-size:8px;letter-spacing:1px}
+      .notice{padding:10px 11px;margin-bottom:12px;font-size:11px}.form-grid{gap:12px}
+    }
+    .lang-link{color:var(--green);font-size:12px;font-weight:600;text-decoration:none;min-height:44px;display:flex;align-items:center;padding:0 10px}
+    #root{display:contents}
+    .brand strong span{color:#76a264}
+    body.tour .lang-link{display:none}
+    .hl{outline:3px solid #e11d48!important;outline-offset:3px;border-radius:8px}
+    /* Page-level scrolling: no inner scroll box. Header and step bar stick to the top,
+       the composer sticks to the bottom; the only scrollbar is the browser's own. */
+    :root{--hh:58px}
+    html{scroll-padding-top:calc(var(--hh) + 64px);scroll-padding-bottom:120px}
+    body{height:auto;min-height:100dvh;overflow:visible;display:block}
+    header{position:sticky;top:0;z-index:20}
+    .layout{display:block;height:auto;min-height:0;overflow:visible}
+    .assistant{display:block;height:auto;margin:0 auto}
+    .assistant-head{position:sticky;top:var(--hh);z-index:15;background:var(--paper)}
+    .transcript-shell{display:block}
+    .messages{overflow:visible;height:auto;min-height:calc(100dvh - var(--hh) - 190px)}
+    .chat-bottom{position:sticky;bottom:0;z-index:15;background:linear-gradient(to bottom,#f7f8f300,var(--paper) 22px)}
+    .new-update{position:fixed;bottom:112px;z-index:16}
+    @media(max-width:800px){:root{--hh:50px}}
+    .usage-options{grid-template-columns:repeat(5,1fr)}
+    .intent-tile small{display:block;font-size:11px;color:var(--muted);margin-top:6px}
+    .plan .plan-kicker{letter-spacing:.5px}
+    .compare-table td:first-child{font-weight:600}
+    .cond-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 10px;font-size:11px;color:var(--muted)}
+    .cond{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 10px;font-size:11px;color:var(--ink)}
+    .cond.ai{border:1px dashed #9a651d;background:#fbf3e6;color:#7a4f15}
+    .cond.ai em{font-style:normal;color:var(--muted)}
+    .cond button{background:transparent;color:inherit;padding:0 2px;font-size:12px;min-height:0}
+    .ai-explain .bubble{border-color:#e9d3b0;background:#fffaf2}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    'use strict';
+    const params = new URLSearchParams(location.search);
+    const EN = params.get('lang') === 'en', TOUR = params.has('tour');
+    const tx = (zh, en) => EN ? en : zh;
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+    const yuan = n => '¥' + Math.round(n).toLocaleString('en-US');
+    const wan = n => EN ? yuan(n) : `¥${(n/10000).toFixed(2)} 万`;
+    document.documentElement.lang = EN ? 'en' : 'zh-CN';
+
+    // ----- sample car data (approximate public prices; check official sites) ----------
+    const AWD = tx('双电机四驱','dual-motor AWD'), RWD = tx('后驱','RWD');
+    const CARS = {
+      su7:{brand:tx('小米','Xiaomi'),name:'SU7',deposit:5000,trims:[
+        {id:'su7-std',label:tx('标准版','Standard'),price:219900,range:720,battery:73,accel:5.9,drive:RWD},
+        {id:'su7-pro',label:'Pro',price:249900,range:902,battery:96,accel:5.9,drive:RWD},
+        {id:'su7-max',label:'Max',price:299900,range:835,battery:101,accel:3.1,drive:AWD}]},
+      et5:{brand:tx('蔚来','NIO'),name:'ET5',deposit:5000,trims:[
+        {id:'et5-75',label:'75 kWh',price:298000,range:560,battery:75,accel:4.0,drive:AWD,baasPrice:228000,rent:728},
+        {id:'et5-100',label:'100 kWh',price:356000,range:710,battery:100,accel:4.0,drive:AWD,baasPrice:228000,rent:1128}]},
+      seal:{brand:tx('比亚迪','BYD'),name:tx('海豹','Seal'),deposit:2000,trims:[
+        {id:'seal-550',label:tx('550 km 精英型','550 km Elite'),price:179800,range:550,battery:61.4,accel:5.9,drive:RWD},
+        {id:'seal-650',label:tx('650 km 豪华型','650 km Premium'),price:209800,range:650,battery:82.5,accel:5.9,drive:RWD},
+        {id:'seal-awd',label:tx('四驱性能版','AWD Performance'),price:239800,range:580,battery:82.5,accel:3.8,drive:AWD}]}
+    };
+    Object.values(CARS).forEach(car=>car.trims.forEach(t=>{t.car=car;}));
+    const ALL_TRIMS = Object.values(CARS).flatMap(c=>c.trims);
+    const MODELS = {any:tx('不限车型，帮我挑','any model — help me pick'),su7:`${CARS.su7.brand} SU7`,et5:`${CARS.et5.brand} ET5`,seal:`${CARS.seal.brand} ${CARS.seal.name}`};
+    const CITIES = {sh:tx('上海','Shanghai'),bj:tx('北京','Beijing'),sz:tx('深圳','Shenzhen'),hz:tx('杭州','Hangzhou'),other:tx('其他城市','another city')};
+    const PAYMENTS = {full:tx('全款','full payment'),loan:tx('分期','financing')};
+    const LOAN = {down:0.2, months:60, apr:0.0299, plateFee:500};
+    const STEP_NAMES = [tx('选车','Choose car'),tx('填资料','Details'),tx('复核确认','Review')];
+    const NEEDS_KEYS = ['model','city','payment','battery'];
+    const FILTER_KEYS = ['budget','minRange','maxAccel'];
+    const apr = () => (LOAN.apr*100).toFixed(2);
+    const loanTerms = () => tx(`首付 ${LOAN.down*100}% · ${LOAN.months} 期 · 年化 ${apr()}%（示例）`,`${LOAN.down*100}% down · ${LOAN.months} months · ${apr()}% APR (sample)`);
+    const cityText = c => tx(`${CITIES[c]}上牌`,`plates in ${CITIES[c]}`);
+
+    // Mock pricing / finance service: deterministic, never the model.
+    function quoteFor(t){
+      const rent = !!(t.baasPrice && state.battery==='rent');
+      const car = rent ? t.baasPrice : t.price;
+      const fullTax = car/1.13*0.1, tax = Math.round(fullTax - Math.min(fullTax/2, 15000)); // NEV purchase tax halved in 2026–27, relief capped at ¥15,000
+      const landed = car + tax + LOAN.plateFee;
+      let monthly = null, down = null;
+      if(state.payment==='loan'){const loan=car*(1-LOAN.down),r=LOAN.apr/12;monthly=Math.round(loan*r/(1-Math.pow(1+r,-LOAN.months)));down=Math.round(car*LOAN.down);}
+      return {car,tax,landed,monthly,down,rent:rent?t.rent:0};
+    }
+
+    // ----- static shell --------------------------------------------------------
+    $('root').innerHTML = `
+  <header>
+    <div class="brand"><div class="brand-icon" aria-hidden="true">⚡</div><strong>evquote<span>.</span></strong><span class="version">${tx('原型','prototype')}</span><small>${tx('对话式购车询价','Conversational EV quote')}</small></div>
+    <div class="top-actions"><a class="lang-link" href="${EN ? '?' : '?lang=en'}">${EN ? '中文' : 'EN'}</a><details class="dock-more" id="dock-more"><summary aria-label="${tx('会话操作','Session actions')}">${tx('会话 ···','Session ···')}</summary><div class="dock-menu" id="dock-menu"></div></details><details class="tools-menu" id="tools-menu"><summary aria-label="${tx('原型工具','Prototype tools')}">${tx('工具','Tools')}</summary><div class="tools-popover"><button id="references">${tx('设计参考 ↗','Design references ↗')}</button><button id="inspect">〈 / 〉 ${tx('交互机制','How it works')}</button></div></details></div>
+  </header>
+  <div class="demo-strip"><span>${tx('本地演示 · 示例价格以官网为准 · 不会支付定金','Local demo · sample prices, check official sites · no deposit is paid')}</span><button id="demo-details">${tx('说明 ↗','About ↗')}</button></div>
+  <div class="layout">
+    <main class="assistant" aria-label="${tx('对话式购车询价演示','Conversational car quote demo')}">
+      <div class="assistant-head">
+        <div class="assistant-heading"><div class="assistant-title"><div class="avatar" aria-hidden="true">✧</div><div><h1 id="page-title"></h1></div></div><div class="context-summary" id="context-summary"></div></div>
+        <nav class="steps" aria-label="${tx('演示流程','Demo steps')}">${STEP_NAMES.map((s,i)=>`${i?'<div class="step-line"></div>':''}<div class="step" data-step="${i}"><i>${i+1}</i>${s}</div>`).join('')}</nav>
+      </div>
+      <div class="transcript-shell"><div class="messages" id="messages" role="region" aria-label="${tx('对话与交互卡片','Conversation and cards')}"><div id="surface"></div></div><button id="new-update" class="new-update hide">${tx('有新进展 · 查看当前卡片 ↓','New update · view current card ↓')}</button></div>
+      <div id="chat-status" class="sr-only" role="status"></div>
+      <div class="chat-bottom">
+        <div class="suggestions" id="suggestions"></div>
+        <form class="compose" id="chat-form"><input id="chat-input" aria-label="${tx('向助手描述需求','Describe your needs')}" maxlength="300" autocomplete="off"><button class="send" aria-label="${tx('发送','Send')}">↑</button></form>
+        <p class="chat-note">${tx('仅用虚构资料 · 不接真实 AI / 下单 / 支付','Fictional data only · no real AI, orders or payments')}</p>
+      </div>
+    </main>
+  </div>
+  <dialog id="about-dialog" aria-labelledby="about-title">
+    <div class="dialog-head"><h2 id="about-title">${tx('这是交互原型，不是购车入口。','This is an interaction prototype, not a car shop.')}</h2><button class="close" data-close="about-dialog" aria-label="${tx('关闭','Close')}">×</button></div>
+    <p>${tx('车型和价格是公开资料的近似示例，以各品牌官网为准；本原型与相关品牌无关联。助手回复来自本地的有限意图规则，落地价和月供由原型内的模拟服务计算，不构成正式报价。','Models and prices are approximate public samples — check each brand’s official site; the prototype is not affiliated with any brand. Replies come from a small set of local intent rules, and on-the-road prices and monthly payments are computed by mock services inside the prototype; nothing here is a formal quote.')}</p>
+    <div class="notice warning" style="margin-top:16px">${tx('请勿输入真实个人资料。此演示不上传或持久化表单，不会支付定金、锁单或排产。','Do not enter real personal data. The demo never uploads or stores the form, and never pays a deposit, locks an order or schedules production.')}</div>
+    <p class="disclaimer">${tx('暂停只保留当前页面内存中的草稿；结束询价需再次确认，会清除本次需求、报价和表单草稿，但不删除已有对话记录。','Pausing keeps the draft in page memory only; ending asks for confirmation and clears needs, quote and form draft, but keeps the conversation.')}</p>
+  </dialog>
+  <dialog id="references-dialog" aria-labelledby="references-title">
+    <div class="dialog-head"><h2 id="references-title">${tx('借鉴的是决策方式，不只是聊天气泡。','What we borrowed is the decision flow, not the chat bubbles.')}</h2><button class="close" data-close="references-dialog" aria-label="${tx('关闭','Close')}">×</button></div>
+    <div id="reference-list"></div>
+  </dialog>
+  <dialog id="end-dialog" aria-labelledby="end-title">
+    <div class="dialog-head"><h2 id="end-title">${tx('结束本次询价？','End this quote?')}</h2><button class="close" data-close="end-dialog" aria-label="${tx('关闭','Close')}">×</button></div>
+    <p>${tx('结束后将清除本次需求、报价和演示表单草稿，已有聊天记录仍保留。没有支付定金，也没有锁单。','Ending clears this quote’s needs, prices and form draft; the conversation stays. No deposit was paid and no order was locked.')}</p>
+    <p class="helper-line">${tx('只是想稍后再看，可以取消后选择“暂停”。','If you just want to come back later, cancel and choose “Pause” instead.')}</p>
+    <div class="bottom-bar"><button class="secondary" data-close="end-dialog" autofocus>${tx('暂不结束','Keep going')}</button><button class="primary" id="end-confirm">${tx('确认结束并清除草稿','End and clear draft')}</button></div>
+  </dialog>
+  <dialog id="compare-dialog" aria-labelledby="compare-title">
+    <div class="dialog-head"><h2 id="compare-title">${tx('不只看价格，也看口径。','Not just the price — check what each number means.')}</h2><button class="close" data-close="compare-dialog" aria-label="${tx('关闭','Close')}">×</button></div>
+    <p class="sub">${tx('公开资料近似示例 · 以各品牌官网为准','Approximate public samples · check official sites')}</p>
+    <div class="table-scroll"><table class="compare-table"><thead><tr><th>${tx('车型 / 版本','Model / trim')}</th><th>${tx('厂商指导价','MSRP')}</th><th>${tx('CLTC 续航','CLTC range')}</th><th>${tx('电池','Battery')}</th><th>0–100 km/h</th><th>${tx('驱动','Drive')}</th></tr></thead><tbody>
+      ${ALL_TRIMS.map(t=>`<tr><td>${t.car.brand} ${t.car.name} · ${t.label}</td><td>${wan(t.price)}${t.baasPrice?`<br><small>${tx('租电','battery rental')} ${wan(t.baasPrice)} + ${yuan(t.rent)}/${tx('月','mo')}</small>`:''}</td><td>${t.range} km</td><td>${t.battery} kWh</td><td>${t.accel.toFixed(1)} s</td><td>${t.drive}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="notice warning" style="margin-top:20px"><span>!</span><div>${tx('CLTC 是工况续航，冬季和高速的实际续航会更短；指导价不等于落地价，落地价还包含购置税、上牌等费用。','CLTC is a test-cycle figure; real range in winter or on highways is shorter. MSRP is not the on-the-road price, which also includes purchase tax and registration fees.')}</div></div>
+  </dialog>
+  <dialog id="mechanism-dialog" aria-labelledby="mechanism-title">
+    <div class="dialog-head"><h2 id="mechanism-title">${tx('从一句话，到一组可操作的 UI。','From one sentence to a set of actionable UI.')}</h2><button class="close" data-close="mechanism-dialog" aria-label="${tx('关闭','Close')}">×</button></div>
+    <p class="sub">${tx('借鉴 A2UI 的声明式 UI 与受控组件目录；原型使用自定义消息格式，不是 A2UI 官方协议或 SDK 的实现。','Borrows A2UI’s declarative UI and controlled component catalog; the prototype uses its own message format, not the official A2UI protocol or SDK.')}</p>
+    <div class="architecture"><div>01 · ${tx('理解意图','Understand intent')}<small>${tx('本地规则识别示例需求<br>可替换为 Agent','Local rules parse sample requests<br>swappable for an agent')}</small></div><div>02 · ${tx('校验与编排','Validate & orchestrate')}<small>${tx('报价 / 金融服务 · 状态守卫<br>不由模型计算价格','Pricing / finance service · state guards<br>the model never computes prices')}</small></div><div>03 · ${tx('渲染原生组件','Render native components')}<small>${tx('组件目录白名单<br>用户动作回传状态机','Whitelisted component catalog<br>user actions go back to the state machine')}</small></div></div>
+    <h3>${tx('最近一次 AI 处理','Latest AI turn')} <span class="pill">${tx('原话 → 工具调用 → 渲染','input → tool calls → rendered')}</span></h3><pre id="trace"></pre>
+    <h3>${tx('当前界面描述','Current UI description')} <span class="pill">${tx('自定义演示格式','custom demo format')}</span></h3><pre id="protocol"></pre>
+    <p class="disclaimer">${tx('自由文本不会变成可执行代码；受控字段通过本地事件修改状态。当前没有网络请求、密钥、真实报价、支付或持久化。','Free text never becomes executable code; controlled fields change state through local events. There are no network calls, keys, real quotes, payments or persistence.')}</p>
+    <p style="margin-top:14px"><a href="https://a2ui.org/" target="_blank" rel="noopener noreferrer">A2UI ↗</a></p>
+  </dialog>`;
+
+    const REFERENCES = [
+      ['Expedia in ChatGPT',tx('按目的地、价格等约束，在聊天中给出酒店、航班和地图，展示动态价格与可用性。','Turns destination and price constraints into hotels, flights and maps inside the chat, with live prices and availability.'),tx('条件变成可编辑的需求摘要；用明确预算筛选候选；价格始终带着口径；不默认选最贵的版本。','Constraints become an editable needs summary; an explicit budget filters candidates; prices always carry their definition; the priciest trim is never pre-selected.'),'https://www.expedia.com/newsroom/smart-trip-planning-new-expedia-app-in-chatgpt-to-plan-your-trip/'],
+      [tx('小米汽车 · 官网 / App','Xiaomi EV · website / app'),tx('在线选配、金融试算，下定金后锁单。','Online configurator and finance calculator; pay a deposit, then lock the order.'),tx('配置、价格和月供都来自确定性的服务；定金和锁单必须由用户显式完成。','Configuration, price and monthly payment come from deterministic services; deposit and order lock are explicit user actions.'),'https://www.xiaomiev.com/'],
+      [tx('蔚来 · App 与 BaaS 租电','NIO · app and BaaS battery rental'),tx('同一辆车可以买断电池，也可以租用电池：车价降低，另付电池月租。','The same car can be bought with the battery or with a rented battery: lower car price plus a monthly battery fee.'),tx('计价结构变化要明确说出来，不能把租电说成“便宜了 7 万”。','A change in pricing structure is stated explicitly — battery rental is never presented as “¥70k cheaper”.'),'https://www.nio.cn/'],
+      [tx('比亚迪 · 官网','BYD · website'),tx('同一车型多个续航 / 驱动版本，在线查看配置和预约试驾。','Several range / drivetrain versions per model, with online specs and test-drive booking.'),tx('按预算和续航筛选版本；CLTC 续航和指导价都标明口径。','Trims are filtered by budget and range; CLTC range and MSRP are labelled for what they are.'),'https://www.bydauto.com.cn/'],
+      ['Uber Eats Cart Assistant',tx('把一句话变成可复核、可修改的购物篮，由用户决定下单。','Turns a sentence into a reviewable, editable cart; the user decides to order.'),tx('只追问缺的那一项，选完直接生成可修改的草稿。','Ask only for what is missing; a choice opens an editable draft directly.'),'https://www.uber.com/us/en/blog/uber-cart-assistant/'],
+      ['DoorDash in ChatGPT',tx('把食谱转成可购买清单，用户到购物车复核、调整并完成购买。','Turns recipes into a shoppable list; the user reviews, adjusts and checks out in the cart.'),tx('聊天负责发现与解释；资料、复核和确认交给受控卡片；复杂比较留在弹层。','Chat handles discovery and explanation; details, review and confirmation live in controlled cards; detailed comparison stays in a dialog.'),'https://about.doordash.com/en-us/news/openai'],
+      ['Shopify Agentic Storefronts',tx('商品进入 AI 对话，Catalog 提供结构化信息，交易走统一 Checkout。','Products appear in AI conversations, the Catalog supplies structured data, and checkout runs through a single Checkout.'),tx('价格来源与 AI 的解释分开；旧报价不进入新需求；结果页明确写“未支付定金”。','The price source stays separate from the AI’s explanation; old quotes never carry over to new needs; the result says plainly that no deposit was paid.'),'https://www.shopify.com/agentic-storefronts'],
+      ['OpenAI Apps SDK UI guidelines',tx('卡片用于单一决策，主要操作不超过两个。','Cards serve a single decision, with at most two primary actions.'),tx('一张卡只做一件事；修改先暂存，确认后原地更新。','One card, one job; edits are staged and applied in place.'),'https://developers.openai.com/apps-sdk/concepts/ui-guidelines']
+    ];
+    $('reference-list').innerHTML = REFERENCES.map(([title,what,how,url])=>`<div class="reference-card"><h3>${title}</h3><p>${what}</p><p><strong>${tx('转译：','In this prototype: ')}</strong>${how}</p><a href="${url}" target="_blank" rel="noopener noreferrer">${tx('官网 ↗','Official site ↗')}</a></div>`).join('');
+
+    const stickyTop = () => document.querySelector('.assistant-head').getBoundingClientRect().bottom;
+    let state, sequence = 0, quoteTimer, lastSurface = null, followConversation = true;
+    let needsDraft = null, quoteChange = '', lastTrace = null;
+    const catalog = Object.freeze({
+      IntentPicker: intentPicker, NeedsForm: needsForm, NeedsSummary: needsSummary, PaymentChoice: paymentChoice,
+      QuoteOptions: quoteOptions, FlowStopped: flowStopped, ApplicantForm: applicantForm, ReviewSummary: reviewSummary, Completion: completion
+    });
+    function initialState() {
+      return {started:false,flow:'active',resumeQuote:false,step:0,model:null,city:null,payment:null,battery:'buy',budget:null,minRange:null,maxAccel:null,inferred:{},revision:0,quote:null,loading:false,selected:null,confirmed:false,applicant:{name:tx('演示用户','Demo User'),phone:'13800000000',store:'',when:'soon'}};
+    }
+    const needsText = s => [MODELS[s.model]||tx('车型待定','model not set'), s.city?cityText(s.city):tx('上牌城市待确认','plate city not confirmed'), s.payment?PAYMENTS[s.payment]:null].filter(Boolean).join(' · ');
+    const trimName = t => `${t.car.brand} ${t.car.name} ${t.label}`;
+    function addMessage(text, user=false, event='', cls='') {
+      const el=document.createElement('div'); el.className='message'+(user?' user':'')+(cls?' '+cls:'');
+      const label=document.createElement('div');label.className='message-label';label.textContent=user?tx('你','You'):tx('EVQUOTE · 本地模拟','EVQUOTE · local simulation');
+      const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=text;
+      el.append(label,bubble);
+      if(event){const note=document.createElement('div');note.className='mini-event';note.textContent='↗ '+event;el.append(note);}
+      $('messages').insertBefore(el,$('surface'));
+      $('chat-status').textContent=text;
+      requestAnimationFrame(()=>{
+        if(!el.isConnected)return;
+        if(!followConversation){$('new-update').classList.remove('hide');return;}
+        scrollBy(0,el.getBoundingClientRect().top-stickyTop()-18);
+      });
+      return el;
+    }
+    function reset() {
+      clearTimeout(quoteTimer);sequence++;needsDraft=null;quoteChange='';lastTrace=null;state=initialState();lastSurface=null;followConversation=true;$('new-update').classList.add('hide');
+      document.querySelectorAll('dialog[open]').forEach(d=>d.close());
+      const activeSurface=$('surface');$('messages').replaceChildren(activeSurface);activeSurface.replaceChildren();$('chat-input').value='';
+      addMessage(tx('想看哪款新能源车？\n告诉我车型、预算、续航要求或上牌城市都行；我只问缺少的信息，价格和口径放在一起看。','Which EV are you looking at?\nTell me a model, a budget, a range requirement or your plate city. I only ask for what is missing, and every price comes with what it includes.'));
+      render();
+      scrollTo(0,0);
+    }
+    function components() {
+      if(state.flow!=='active')return [{id:'stopped',component:'FlowStopped'}];
+      if(state.confirmed)return [{id:'complete',component:'Completion'}];
+      if(state.step===1)return [{id:'applicant',component:'ApplicantForm'}];
+      if(state.step===2)return [{id:'review',component:'ReviewSummary'}];
+      if(!state.started)return [{id:'intent',component:'IntentPicker'}];
+      if(state.city && !state.payment)return [{id:'needs',component:'NeedsSummary'},{id:'payment',component:'PaymentChoice'}];
+      return [{id:'needs',component:state.quote || state.loading?'NeedsSummary':'NeedsForm'},...(state.quote || state.loading?[{id:'options',component:'QuoteOptions'}]:[])];
+    }
+    function intentPicker(){
+      const from = key => wan(Math.min(...CARS[key].trims.map(t=>t.price)));
+      return `<section><div class="eyebrow">LET'S START</div><h2 style="font-size:21px;margin-top:8px">${tx('先看哪款车？','Which car first?')}</h2><p class="sub">${tx('从一个选择开始，不用先填一整张表。','Start with one choice instead of a whole form.')}</p>
+        <div class="intent-grid">${['su7','et5','seal'].map(k=>`<button class="intent-tile" data-intent="${k}"><div class="intent-icon" aria-hidden="true">◎</div><b>${MODELS[k]}</b><span>${tx(`${from(k)} 起`,`from ${from(k)}`)} →</span><small>${tx('示例价格，以官网为准','sample price — check the official site')}</small></button>`).join('')}<button class="intent-tile" data-intent="any"><div class="intent-icon" aria-hidden="true">◉</div><b>${tx('按预算帮我挑','Pick by budget')}</b><span>${tx('三个品牌一起比较 →','Compare across all three →')}</span><small>${tx('可以加续航要求','add a range requirement if you like')}</small></button></div>
+        <p class="helper-line">${tx('也可以直接说：“预算 25 万以内，续航 600 公里以上，上海上牌，分期。”','Or just say: “Under ¥250k, at least 600 km range, plates in Shanghai, financing.”')}</p></section>`;
+    }
+    function needsSummary(){
+      return `<details class="needs-summary" ${needsDraft?'open':''}><summary><span data-needs-label>${needsLabel()}</span><span style="color:var(--green)"> · ${tx('修改需求','edit needs')}</span></summary>${needsForm()}</details>`;
+    }
+    function needsLabel(){
+      return needsDraft?tx('需求已修改，待重新报价','Needs changed — not requoted yet'):`${tx('已记录需求','Needs recorded')} · ${needsText(state)}`;
+    }
+    function paymentChoice(){
+      return `<section aria-labelledby="payment-title"><div class="eyebrow">PAYMENT</div><h2 id="payment-title" style="font-size:20px;margin-top:6px">${tx('全款，还是分期？','Full payment or financing?')}</h2><p class="sub">${tx('付款方式会改变你看到的数字：全款看落地价，分期还要看首付和月供。','The payment method changes the numbers you see: full payment shows the on-the-road price; financing adds the down payment and monthly payment.')}</p>
+        <div class="payment-choices"><button class="payment-choice" data-payment="full"><span class="payment-icon" aria-hidden="true">${tx('全','F')}</span><span><strong>${tx('全款','Full payment')}</strong><small>${tx('查看落地价估算','See the estimated on-the-road price')}</small></span><span class="arrow" aria-hidden="true">→</span></button>
+        <button class="payment-choice" data-payment="loan"><span class="payment-icon" aria-hidden="true">${tx('分','L')}</span><span><strong>${tx('分期','Financing')}</strong><small>${loanTerms()}</small></span><span class="arrow" aria-hidden="true">→</span></button></div>
+        <p class="helper-line">${tx('月供由金融试算服务计算，不由模型推算。','Monthly payments come from the finance calculator, never from the model.')}</p><p class="disclaimer">${tx('不会替你默认选择；之后仍可修改，不代表已下单。','Nothing is pre-selected for you; you can change it later, and choosing does not place an order.')}</p></section>`;
+    }
+    function archiveSurface() {
+      if(!lastSurface)return;
+      const advancing=state.step>lastSurface.step || (state.confirmed && !lastSurface.confirmed);
+      const invalidated=state.revision!==lastSurface.revision && lastSurface.quoted;
+      if(!advancing && !invalidated)return;
+      const archiveKey=`${lastSurface.revision}-${lastSurface.step}`;
+      $('messages').querySelector(`[data-archive="${archiveKey}"]`)?.remove();
+      const history=document.createElement('div');history.className='message';
+      history.dataset.archive=archiveKey;
+      history.innerHTML=`<div class="message-label">${tx('EVQUOTE · 已完成的交互','EVQUOTE · completed interaction')}</div><div class="history-card" data-revision="${lastSurface.revision}"><div><strong>${esc(lastSurface.title)}</strong><p>${esc(lastSurface.summary)}</p><span class="history-status"></span></div></div>`;
+      $('messages').insertBefore(history,$('surface'));
+    }
+    function surfaceLabel(){
+      if(state.flow==='paused')return tx('询价已暂停','Quote paused');
+      if(state.flow==='ended')return tx('询价已结束','Quote ended');
+      if(state.confirmed)return tx('演示结果','Demo result');
+      return [tx('为这次需求生成的交互卡片','Cards generated for this request'),tx('受控资料卡 · 不发送给模型','Controlled form · not sent to the model'),tx('复核卡 · 等待你的确认','Review card · awaiting your confirmation')][state.step];
+    }
+    function render() {
+      archiveSurface();
+      const surface={format:'quote-demo/1 (not official A2UI)',surfaceId:'quote-chat-surface',placement:'inline-conversation',historyPolicy:'collapsed-readonly-summary',components:components(),data:{step:state.step,model:state.model,city:state.city,payment:state.payment,battery:state.battery,budget:state.budget,minRange:state.minRange,quoteStatus:state.loading?'loading':state.quote?'ready':'needs-quote',selectedTrim:state.selected},allowedActions:['startIntent','setCity','choosePayment','updateNeeds','requestQuote','filter','selectTrimAndOpenDraft','compare','back','review','confirmDemo']};
+      const content=surface.components.map(c=>{
+        if(!Object.hasOwn(catalog,c.component))throw new Error('Unregistered component');
+        const html=catalog[c.component]();
+        return ['QuoteOptions','PaymentChoice'].includes(c.component)?`<div data-quote-content ${needsDraft?'inert class="quote-stale"':''}>${html}</div>`:html;
+      }).join('');
+      $('surface').innerHTML=`<div class="surface-label">✧ EVQUOTE · ${surfaceLabel()}</div><div class="surface-body">${content}</div>`;
+      $('surface').setAttribute('aria-busy',String(state.loading));
+      document.querySelectorAll('.history-card').forEach(card=>{
+        const stale=Number(card.dataset.revision)!==state.revision;card.classList.toggle('stale',stale);
+        card.querySelector('.history-status').textContent=state.flow==='ended'?tx('询价已结束 · 仅作记录','Quote ended · record only'):state.flow==='paused'?tx('询价已暂停 · 继续后可修改','Quote paused · editable after resuming'):stale?tx('已失效 · 需求已更改，不可继续使用','Expired · needs changed, can no longer be used'):state.confirmed?tx('演示已结束 · 仅作记录','Demo finished · record only'):tx('已收起 · 仅作记录','Collapsed · record only');
+      });
+      $('protocol').textContent=JSON.stringify(surface,null,2);
+      $('trace').textContent=lastTrace?JSON.stringify(lastTrace,null,2):tx('还没有自由文本输入。试着在底部说一句话，例如“经常跑高速，二十来万”。','No free-text input yet. Try typing a sentence at the bottom, e.g. “lots of highway driving, around ¥200k”.');
+      syncNeedsProtocol();
+      renderSuggestions();
+      document.querySelector('main').classList.toggle('flow-inactive',state.flow!=='active');
+      document.querySelectorAll('.step[data-step]').forEach(el=>{const n=Number(el.dataset.step);el.className='step'+(state.flow==='active'?(n===state.step?' active':n<state.step?' done':''):'');if(n===state.step && state.flow==='active')el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
+      $('page-title').textContent=tx('购车询价助手','EV quote assistant');
+      const t=validSelection()?currentTrim():null;
+      $('context-summary').textContent=state.flow==='paused'?tx('已暂停 · 草稿仅保留在当前页面','Paused · draft kept on this page only'):state.flow==='ended'?tx('已结束 · 草稿已清除','Ended · draft cleared'):t?`${trimName(t)} · ${tx('落地约','on the road ~')} ${wan(quoteFor(t).landed)}`:tx('本地模拟 · 尚未选择车型版本','Local simulation · no trim selected');
+      lastSurface={step:state.step,revision:state.revision,quoted:!!state.quote,confirmed:state.confirmed,title:[tx('选车记录','Car selection'),tx('演示资料已填写','Demo details filled in'),tx('演示订单已复核','Demo order reviewed')][state.step],summary:state.step===0 && t?`${trimName(t)} · ${tx('落地约','on the road ~')} ${wan(quoteFor(t).landed)}`:state.step===0?tx('旧报价仅作记录，不能用于新需求','Old quote kept as a record only; it cannot be used for the new needs'):state.step===1?tx('受控表单已完成，不把联系方式复制到聊天记录。','Controlled form completed; contact details are not copied into the chat.'):tx('已显式确认完成本地演示，未支付定金或锁单。','Explicitly confirmed the local demo; no deposit paid, no order locked.')};
+    }
+    function needsForm() {
+      const d=needsDraft||state;
+      const changes=[];
+      if(d.model!==state.model)changes.push(tx(`车型改为${MODELS[d.model]}`,`model → ${MODELS[d.model]}`));
+      if(d.city!==state.city)changes.push(tx(`上牌城市改为${CITIES[d.city]}`,`plate city → ${CITIES[d.city]}`));
+      if(d.payment!==state.payment && d.payment)changes.push(tx(`付款方式改为${PAYMENTS[d.payment]}`,`payment → ${PAYMENTS[d.payment]}`));
+      const pendingText=needsDraft?`${cap(changes.join(tx('，',', ')))}${tx('。','. ')}${tx('确认后重新报价。','Prices are requoted once you confirm.')}${state.quote?tx(' 原报价暂不可选；取消修改可恢复。',' The current quote is locked meanwhile; cancel to restore it.'):''}`:'';
+      const sel=(id,map,val,ph)=>`<select id="${id}"><option value="" disabled ${val?'':'selected'}>${ph}</option>${Object.entries(map).map(([k,v])=>`<option value="${k}" ${val===k?'selected':''}>${cap(v)}</option>`).join('')}</select>`;
+      return `<section class="panel needs-editor" id="needs-editor"><div class="panel-head"><h2>${state.city?tx('你的需求，随时可改','Your needs — edit any time'):tx('还差一件事：在哪个城市上牌？','One more thing: where will the car be registered?')}</h2><span class="pill">${tx('不按定位猜城市','city is never guessed from location')}</span></div>
+        ${state.city?'':`<p class="sub">${tx(`已记录：${MODELS[state.model]}。上牌城市会影响落地价、牌照条件和交付门店，请选择后再看价格。`,`Recorded: ${MODELS[state.model]}. The plate city affects the on-the-road price, plate rules and delivery centre — pick one to see prices.`)}</p><div class="usage-options">${Object.entries(CITIES).map(([k,v])=>`<button class="usage-choice" data-city="${k}">${cap(v)}</button>`).join('')}</div>`}
+        <details ${d.city || needsDraft?'open':''}><summary class="helper-line">${tx('调整车型、城市与付款方式','Adjust model, city and payment')}</summary>
+        <div class="config"><label class="field">${tx('车型','Model')}${sel('need-model',MODELS,d.model,tx('请选择车型','Choose a model'))}</label>
+        <label class="field">${tx('上牌城市','Plate city')}${sel('need-city',CITIES,d.city,tx('请选择，不按定位猜','Choose — never guessed from location'))}</label>
+        ${state.payment?`<label class="field">${tx('付款方式','Payment')}${sel('need-payment',PAYMENTS,d.payment,'')}</label>`:''}</div></details>
+        ${needsDraft?`<div class="edit-note" role="status"><strong>${tx('待更新','Pending')}</strong> · ${pendingText}</div>`:''}
+        ${needsDraft?`<div class="card-actions"><button class="secondary" data-action="cancel-needs">${tx('取消修改','Cancel changes')}</button><button class="primary" data-action="quote">${tx('按新需求重新报价 →','Requote with the new needs →')}</button></div>`:!state.quote && !state.loading && state.city && state.payment?`<div class="card-actions"><button class="primary" data-action="quote">${tx('查看报价 →','See prices →')}</button></div>`:''}
+        </section>`;
+    }
+    function editNeeds(patch, focusSelector){
+      needsDraft={...(needsDraft||{model:state.model,city:state.city,payment:state.payment,battery:state.battery}),...patch};
+      if(NEEDS_KEYS.every(key=>needsDraft[key]===state[key]))needsDraft=null;
+      refreshNeedsEditor(focusSelector);
+    }
+    function refreshNeedsEditor(focusSelector){
+      const editor=$('needs-editor'),scroll=scrollY;
+      const expanded=editor.querySelector('details').open;
+      editor.outerHTML=needsForm();
+      $('needs-editor').querySelector('details').open=expanded;
+      const label=$('surface').querySelector('[data-needs-label]');
+      if(label)label.textContent=needsLabel();
+      $('surface').querySelectorAll('[data-quote-content]').forEach(el=>{el.inert=!!needsDraft;el.classList.toggle('quote-stale',!!needsDraft);});
+      const target=focusSelector && $('needs-editor').querySelector(focusSelector);
+      if(target)target.focus({preventScroll:true});
+      scrollTo(0,scroll);
+      $('chat-status').textContent=needsDraft?tx('需求暂存，确认后才会重新报价。','Needs staged; prices update only when you confirm.'):tx('已恢复原需求和报价。','Original needs and prices restored.');
+      syncNeedsProtocol();
+      renderSuggestions();
+    }
+    function syncNeedsProtocol(){
+      const surface=JSON.parse($('protocol').textContent);
+      surface.data.pendingNeeds=needsDraft;
+      surface.data.flow=state.flow;
+      surface.data.quoteSelectable=state.flow==='active' && !needsDraft && !!state.quote;
+      surface.allowedActions=state.flow==='paused'?['resumeFlow','requestEndFlow','explain']:state.flow==='ended'?['restart','explain']:[...new Set([...surface.allowedActions,'editNeedsDraft','applyNeedsDraft','cancelNeedsDraft','pauseFlow','requestEndFlow'])];
+      $('protocol').textContent=JSON.stringify(surface,null,2);
+    }
+    function applyNeedsDraft(){
+      if(!needsDraft){requestQuote();return;}
+      const patch=needsDraft;
+      updateNeeds(patch,false);
+      requestQuote();
+    }
+    function modelTrims(){return state.model && state.model!=='any'?CARS[state.model].trims:ALL_TRIMS;}
+    function currentTrim(){return ALL_TRIMS.find(t=>t.id===state.selected);}
+    function validSelection(){const t=currentTrim();return !!(state.flow==='active' && !needsDraft && state.payment && state.quote && state.quote.revision===state.revision && t && modelTrims().includes(t));}
+    function plateNotice(){return ['sh','bj'].includes(state.city)?`<div class="notice warning"><span class="notice-icon">!</span><div><strong>${tx(`${CITIES[state.city]}上牌需要新能源牌照额度`,`Plates in ${CITIES[state.city]} need a NEV plate quota`)}</strong><br>${tx('能报价不等于你已经满足上牌条件；本助手不判断你是否有额度。','Getting a price does not mean you meet the plate rules; the assistant does not judge whether you have a quota.')}</div></div>`:'';}
+    function flowStopped(){
+      const ended=state.flow==='ended';
+      return `<section class="quote-result" aria-labelledby="flow-title"><div class="eyebrow">${ended?tx('本次询价已结束','Quote ended'):tx('暂停，不是提交','Paused, not submitted')}</div>
+        <h2 id="flow-title" tabindex="-1">${ended?tx('已结束，不会继续询价','Ended; this quote will not continue'):tx('先停在这里，想继续时再回来','Stopped here — come back whenever you like')}</h2>
+        ${ended?`<p class="helper-line">${tx('本次需求、报价和演示表单草稿已清除，已有聊天记录仍保留。未支付定金，也未锁单。','Needs, prices and the form draft were cleared; the conversation stays. No deposit was paid and no order was locked.')}</p>`:`<p class="result-summary">${tx(`停在「${STEP_NAMES[state.step]}」`,`Stopped at “${STEP_NAMES[state.step]}”`)}</p><p class="helper-line">${tx('需求和演示资料只在当前页面内存中保留；刷新或关闭页面会丢失。没有后台任务会自动提交，你也可以继续提问。','Needs and demo details live in this page’s memory only and are lost on refresh or close. No background task will submit anything, and you can keep asking questions.')}</p>`}
+        <div class="card-actions"><button class="primary" data-action="${ended?'restart':'resume-flow'}">${ended?tx('开始新询价','Start a new quote'):tx('继续本次询价','Resume this quote')}</button></div>
+        <p class="disclaimer">${ended?tx('新询价需要重新确认需求。','A new quote starts from fresh needs.'):tx('继续后仍需核对报价、资料并显式确认；暂停不代表已下单。','After resuming you still check the quote and details and confirm explicitly; pausing never places an order.')}</p></section>`;
+    }
+    function focusFlowStatus(){const title=$('flow-title');$('chat-status').textContent=title.textContent;title.focus({preventScroll:true});title.scrollIntoView({block:'start'});}
+    function pauseFlow(){
+      if(state.flow!=='active' || !state.started || state.confirmed)return;
+      if($('applicant-form'))saveForm($('applicant-form'));
+      state.resumeQuote=state.loading;
+      clearTimeout(quoteTimer);sequence++;state.loading=false;state.flow='paused';
+      render();focusFlowStatus();
+    }
+    function resumeFlow(){
+      if(state.flow!=='paused')return;
+      const retry=state.resumeQuote;state.resumeQuote=false;state.flow='active';render();
+      if(retry)requestQuote();else{focusSurface();$('surface').scrollIntoView({block:'start'});}
+      $('chat-status').textContent=tx('已继续询价，尚未提交任何订单。','Quote resumed; nothing has been ordered.');
+    }
+    function requestEndFlow(){
+      if(!state.started || state.confirmed || state.flow==='ended'){addMessage(tx('当前没有进行中的询价，无需结束。','There is no quote in progress to end.'));return;}
+      $('end-dialog').showModal();
+    }
+    function endFlow(){
+      $('end-dialog').close();
+      clearTimeout(quoteTimer);sequence++;
+      const revision=state.revision+1;
+      state={...initialState(),flow:'ended',revision,applicant:{name:'',phone:'',store:'',when:'soon'}};
+      needsDraft=null;quoteChange='';lastSurface=null;$('chat-input').value='';
+      render();focusFlowStatus();
+    }
+    function quoteOptions() {
+      if(state.loading)return `<div class="quote-progress" role="status"><span class="spinner" aria-hidden="true"></span><div>${tx('正在请求报价和金融试算…','Requesting prices and the finance calculation…')}<p class="helper-line">${tx('读取车型版本 → 计算落地价和月供 → 生成可比较卡片','Load trims → compute on-the-road price and monthly payment → build comparable cards')}</p></div></div>`;
+      if(!state.quote)return '';
+      const loan=state.payment==='loan';
+      const trims=modelTrims();
+      const hasNio=trims.some(t=>t.baasPrice);
+      const candidates=trims.filter(matches);
+      const rentNote=hasNio && state.battery==='rent'?`<div class="notice"><span class="notice-icon">↗</span><div><strong>${tx('这是租电方案，不是同一辆车便宜了','This is battery rental, not the same car at a discount')}</strong><br>${tx('蔚来车型的车价不含电池，另付电池月租（75 kWh ¥728 / 月，100 kWh ¥1,128 / 月，示例）；月租不计入落地价，需要单独看。','NIO prices exclude the battery and add a monthly battery fee (75 kWh ¥728/mo, 100 kWh ¥1,128/mo, sample); the fee is not part of the on-the-road price and must be read separately.')}</div></div>`:'';
+      const filters=FILTER_KEYS.filter(k=>state[k]!==null);
+      const condBar=filters.length?`<div class="cond-bar"><span>${tx('筛选条件','Conditions')}</span>${filters.map(k=>{const ai=state.inferred[k];return ai?`<span class="cond ai" title="${esc(ai.reason)}">${tx('AI 推断','AI inferred')} · ${condLabel(k,state[k])} <em>${tx('依据：','because ')}${esc(ai.reason)}</em><button data-confirm="${k}" aria-label="${tx('确认','Confirm')}">✓</button><button data-drop="${k}" aria-label="${tx('删除','Remove')}">✕</button></span>`:`<span class="cond">${condLabel(k,state[k])}<button data-drop="${k}" aria-label="${tx('删除','Remove')}">✕</button></span>`;}).join('')}</div>${filters.some(k=>state.inferred[k])?`<p class="helper-line">${tx('虚线是 AI 根据你的描述推断的条件，确认或删掉都可以；确认之前，它不会被当成你的明确要求。','Dashed chips are conditions the AI inferred from what you said; confirm or remove them. Until confirmed, they are not treated as your explicit requirements.')}</p>`:''}`:'';
+      return `${rentNote}${plateNotice()}
+        <div class="payment-receipt"><div>${tx('✓ 已选','✓ Selected')} <strong>${cap(PAYMENTS[state.payment])}</strong> · ${loan?loanTerms():tx('看落地价估算','showing the estimated on-the-road price')}</div><button data-action="change-payment">${tx('修改','Change')}</button></div>
+        <div class="results-title"><h2>${state.model==='any'?tx('按需求筛选的版本','Trims matching your needs'):tx(`${MODELS[state.model]} 版本`,`${MODELS[state.model]} trims`)} <span class="pill">${tx('CNY · 示例价格，以官网为准','CNY · sample prices, check official sites')}</span></h2></div>
+        <div class="filter-bar"><span>${tx('指导价预算','MSRP budget')}</span>${[null,250000,220000].map(b=>`<button class="chip ${state.budget===b?'on':''}" data-budget="${b??'all'}" aria-pressed="${state.budget===b}">${b===null?tx('不限','Any'):tx(`${b/10000} 万以内`,`Up to ${yuan(b)}`)}</button>`).join('')}
+        ${hasNio?`<span style="margin-left:12px">${tx('蔚来电池','NIO battery')}</span>${['buy','rent'].map(b=>`<button class="chip ${state.battery===b?'on':''}" data-battery="${b}" aria-pressed="${state.battery===b}">${b==='buy'?tx('买断','Buy'):tx('租用 BaaS','Rent (BaaS)')}</button>`).join('')}`:''}</div>
+        ${condBar}${filters.length?`<div class="match-note">${tx(`${candidates.length} 个版本满足以上条件`,`${candidates.length} trim${candidates.length===1?'':'s'} match these conditions`)}${tx(' · 只按条件筛选，不代表推荐',' · filtered by your conditions, not a recommendation')}</div>`:''}
+        ${!candidates.length?`<div class="empty"><h3>${tx('不为了凑预算，编一辆车出来。','No made-up car just to fit the budget.')}</h3><p class="helper-line">${tx('可以放宽预算或续航要求，或者换个车型。','Relax the budget or the range requirement, or try another model.')}</p><button class="secondary" data-action="clear-filters">${tx('清除筛选条件','Clear conditions')}</button></div>`:''}
+        <div class="plans ${candidates.length===2?'two-options':candidates.length===1?'one-option':''}">${candidates.map(t=>{const q=quoteFor(t);return `<article class="plan ${state.selected===t.id?'selected':''}" data-plan="${t.id}">
+          <div><div class="plan-kicker">${t.car.brand} ${t.car.name}</div><h3>${t.label}</h3><div class="price">${wan(q.car)}</div><div class="price-caption">${q.rent?tx('车价（不含电池）· 示例','car price (battery excluded) · sample'):tx('厂商指导价 · 示例','MSRP · sample')}</div></div>
+          <hr><div class="benefit">${tx('落地价估算','On the road (est.)')}<strong>${wan(q.landed)}</strong></div>
+          ${loan?`<div class="benefit">${tx(`月供 · ${LOAN.months} 期`,`Monthly · ${LOAN.months} months`)}<strong>${yuan(q.monthly)}</strong></div>`:''}
+          ${q.rent?`<div class="benefit">${tx('电池月租','Battery rental')}<strong>${yuan(q.rent)} / ${tx('月','mo')}</strong></div>`:''}
+          <div class="benefit">${tx('CLTC 续航','CLTC range')}<strong>${t.range} km</strong></div>
+          <details class="plan-detail"><summary>${tx('落地价怎么算？','What is in the on-the-road price?')}</summary><p>${tx(`车价 ${wan(q.car)} + 购置税 ${yuan(q.tax)}（2026 年减半，示例）+ 上牌服务费 ${yuan(LOAN.plateFee)}；保险另计。${loan?`<br>首付 ${yuan(q.down)}，贷款按车价 ${100-LOAN.down*100}% 计。`:''}<br>CLTC 是工况续航，冬季高速实际更短。`,`Car ${wan(q.car)} + purchase tax ${yuan(q.tax)} (halved in 2026, sample) + registration ${yuan(LOAN.plateFee)}; insurance extra.${loan?`<br>Down payment ${yuan(q.down)}; the loan covers ${100-LOAN.down*100}% of the car price.`:''}<br>CLTC is a test-cycle figure; winter or highway range is shorter.`)}</p></details>
+          <button class="select-plan" data-action="select" data-id="${t.id}">${tx('选这个 · 填演示资料 →','Choose · fill in demo details →')}</button></article>`;}).join('')}</div>
+        <div class="quote-footer"><span>${tx('先比较，选择后仍可返回修改。','Compare first — you can come back and change after choosing.')}</span><button data-action="compare">${tx('逐项比较参数 ↗','Compare specs item by item ↗')}</button></div>
+        <details class="source-detail"><summary>${tx('价格来源与口径','Price source and definitions')}</summary><p>${tx('车型和指导价是公开资料的近似示例，以各品牌官网为准。落地价和月供由原型内的模拟服务按固定规则计算；助手只解释与引导，不计算价格。','Models and MSRPs are approximate public samples — check each brand’s official site. On-the-road price and monthly payment are computed by mock services with fixed rules; the assistant explains and guides, it never computes prices.')}</p></details>`;
+    }
+    function draftSummary(){
+      if(!validSelection())return '';
+      const t=currentTrim(),q=quoteFor(t);
+      return `<div class="draft"><div><span class="eyebrow">YOUR DRAFT · ${tx('可编辑草稿','editable draft')}</span><br><strong>${trimName(t)}</strong><small>${cap(PAYMENTS[state.payment])} · ${cityText(state.city)} · ${tx('仅选择了演示版本，未下单','demo trim chosen only, nothing ordered')}</small></div><div class="draft-price">${wan(q.landed)}<small>${tx('落地价估算 · 示例','on the road (est.) · sample')}</small></div></div>`;
+    }
+    function applicantForm() {
+      const a=state.applicant, city=CITIES[state.city];
+      return `${draftSummary()}<div class="notice"><span>◎</span><div>${tx('使用已预填的虚构资料就能体验。请勿输入真实联系方式；此表单不发送给模型。','The pre-filled fictional details are enough to try it. Do not enter real contact details; this form is never sent to the model.')}</div></div>
+        <form id="applicant-form" class="panel"><div class="panel-head"><h2>${tx('购车联系人 · 仅限虚构演示资料','Buyer contact · fictional demo data only')}</h2><span class="pill">${tx('内存存储 · 刷新即清除','In memory · cleared on refresh')}</span></div>
+        <div class="form-grid"><label class="field">${tx('演示称呼','Demo name')}<input name="name" required maxlength="30" value="${esc(a.name)}" autocomplete="off"></label>
+        <label class="field">${tx('演示手机号 · 请勿填写真实号码','Demo phone · do not use a real number')}<input name="phone" required pattern="1[0-9]{10}" value="${esc(a.phone)}" autocomplete="off"></label>
+        <label class="field">${tx('交付中心','Delivery centre')}<select name="store">${[1,2].map(i=>{const v=tx(`${city}示例交付中心 ${i}`,`${cap(city)} sample delivery centre ${i}`);return `<option ${a.store===v?'selected':''}>${esc(v)}</option>`;}).join('')}</select></label>
+        <label class="field">${tx('期望提车','Preferred handover')}<select name="when">${[['soon',tx('尽快','as soon as possible')],['1m',tx('1 个月内','within 1 month')],['3m',tx('3 个月内','within 3 months')]].map(([k,v])=>`<option value="${k}" ${a.when===k?'selected':''}>${cap(v)}</option>`).join('')}</select></label></div>
+        <p class="sub" style="margin-top:18px">${tx('正式下单还需身份证、驾驶证以及分期的金融审批资料；此处未实现。','A real order also needs ID, driving licence and, for financing, credit-approval documents; not implemented here.')}</p>
+        <div class="error" id="form-error" role="alert"></div><div class="card-actions"><button class="secondary" type="button" data-action="back">${tx('返回选车','Back to cars')}</button><button class="primary" type="submit">${tx('下一步：复核 →','Next: review →')}</button></div></form>`;
+    }
+    function reviewSummary() {
+      if(!validSelection())return `<div class="notice warning">${tx('报价已失效，请返回重新报价。','The quote has expired; go back and requote.')}</div><button class="secondary" data-action="back">${tx('返回','Back')}</button>`;
+      const t=currentTrim(),q=quoteFor(t),a=state.applicant;
+      return `${draftSummary()}<section class="panel"><div class="panel-head"><h2>${tx('最后，由你来确认。','Finally, you confirm.')}</h2><span class="pill">${tx('仅确认演示 · 不会支付','Confirms the demo only · no payment')}</span></div>
+        <div class="review-row"><span>${tx('车型版本','Car')}</span><strong>${trimName(t)}${q.rent?tx(' · 租电',' · battery rental'):''}</strong></div>
+        <div class="review-row"><span>${tx('付款方式','Payment')}</span><strong>${cap(PAYMENTS[state.payment])}${q.monthly?` · ${tx('首付','down')} ${yuan(q.down)} · ${yuan(q.monthly)} × ${LOAN.months}`:''}</strong></div>
+        <div class="review-row"><span>${tx('落地价估算','On the road (est.)')}</span><strong>${wan(q.landed)}${q.rent?` + ${tx('电池月租','battery')} ${yuan(q.rent)}/${tx('月','mo')}`:''}</strong></div>
+        <div class="review-row"><span>${tx('上牌 / 交付','Plates / delivery')}</span><strong>${cap(CITIES[state.city])} · ${esc(a.store)}</strong></div>
+        <div class="review-row"><span>${tx('定金（示例）','Deposit (sample)')}</span><strong>${yuan(t.car.deposit)}</strong></div>
+        <div class="notice warning" style="margin-top:20px"><span>!</span><div>${tx('这是提议中的确认交互，未接入身份验证、正式报价、金融审批和支付。','This is the proposed confirmation step; identity checks, formal quoting, credit approval and payment are not connected.')}</div></div>
+        <label class="check"><input type="checkbox" id="demo-consent"><span>${tx('我理解以上是虚构资料和示例价格，仅确认完成本地演示，不会支付定金、锁单或排产。','I understand these are fictional details and sample prices; I am only confirming the local demo — no deposit, order lock or production slot.')}</span></label>
+        <div class="card-actions"><button class="secondary" data-action="edit">${tx('修改资料','Edit details')}</button><button class="primary" id="confirm-demo" data-action="confirm" disabled>${tx('确认完成演示','Confirm demo')}</button></div></section>`;
+    }
+    function completion(){
+      const t=currentTrim(),q=quoteFor(t),a=state.applicant;
+      const row=(dt,dd)=>`<div><dt>${dt}</dt><dd>${dd}</dd></div>`;
+      return `<section class="panel application-summary" aria-labelledby="application-title">
+        <div class="receipt-head"><div><div class="eyebrow">ORDER INTENT · ${tx('演示购车意向','demo purchase intent')}</div><h2 id="application-title">${tx('你的购车意向，已整理好','Your purchase intent is ready')}</h2><span class="pill">${tx('仅本地复核 · 未支付定金','Reviewed locally · no deposit paid')}</span></div><div class="receipt-price">${wan(q.landed)}<small>${tx('落地价估算 · 示例','on the road (est.) · sample')}</small></div></div>
+        <div class="receipt-grid">
+          <section aria-labelledby="receipt-plan"><h3 id="receipt-plan">${tx('你选择的车','Your car')}</h3><dl class="receipt-facts">
+            ${row(tx('车型版本','Car'),trimName(t))}
+            ${row(tx('车价','Car price'),`${wan(q.car)}${q.rent?tx(' · 不含电池，另付电池月租 ',' · battery excluded, plus battery rental ')+yuan(q.rent)+tx(' / 月',' / mo'):tx(' · 厂商指导价',' · MSRP')}`)}
+            ${row(tx('落地价估算','On the road (est.)'),`${wan(q.landed)}<br>${tx(`含购置税 ${yuan(q.tax)}、上牌服务费 ${yuan(LOAN.plateFee)}；保险另计`,`incl. purchase tax ${yuan(q.tax)} and registration ${yuan(LOAN.plateFee)}; insurance extra`)}`)}
+            ${row(tx('付款方式','Payment'),q.monthly?tx(`分期 · 首付 ${yuan(q.down)} · 月供 ${yuan(q.monthly)} × ${LOAN.months} 期 · 年化 ${apr()}%（示例）`,`Financing · down ${yuan(q.down)} · ${yuan(q.monthly)} × ${LOAN.months} · ${apr()}% APR (sample)`):tx('全款','Full payment'))}
+            ${row(tx('CLTC 续航','CLTC range'),`${t.range} km · ${tx('工况值','test-cycle figure')}`)}
+            ${row(tx('定金','Deposit'),`${yuan(t.car.deposit)} · ${tx('示例，未支付','sample, not paid')}`)}
+          </dl></section>
+          <section aria-labelledby="receipt-people"><h3 id="receipt-people">${tx('联系人与交付 · 虚构资料','Contact and delivery · fictional data')}</h3><dl class="receipt-facts">
+            ${row(tx('联系人','Contact'),esc(a.name))}
+            ${row(tx('演示手机号','Demo phone'),`${esc(a.phone)}<br>${tx('未发送短信','no SMS sent')}`)}
+            ${row(tx('上牌城市','Plate city'),`${cap(CITIES[state.city])}${['sh','bj'].includes(state.city)?tx(' · 牌照额度未核验',' · plate quota not checked'):''}`)}
+            ${row(tx('交付中心','Delivery centre'),esc(a.store))}
+            ${row(tx('待补资料','Still needed'),tx('身份证、驾驶证及分期金融审批资料尚未采集','ID, driving licence and credit-approval documents have not been collected'))}
+            ${row(tx('订单号','Order number'),tx('未生成','Not generated'))}
+          </dl></section>
+        </div>
+        <section style="margin-top:20px" aria-labelledby="receipt-status"><h3 id="receipt-status">${tx('当前办理状态','Current status')}</h3><ol class="application-status"><li><strong>✓ ${tx('本地复核','Local review')}</strong><span>${tx('已确认演示内容','demo confirmed')}</span></li><li><strong>${tx('支付定金','Deposit')}</strong><span>${tx('未支付','not paid')}</span></li><li><strong>${tx('锁单','Order lock')}</strong><span>${tx('未锁单','not locked')}</span></li><li><strong>${tx('排产交付','Production & delivery')}</strong><span>${tx('未开始','not started')}</span></li></ol></section>
+        <div class="receipt-next"><strong>${tx('如果要正式购车，接下来是什么？','What would a real purchase need next?')}</strong><br>${tx('正式流程应在品牌官方渠道核实价格与配置、完成身份和金融审批，再由用户支付定金、确认锁单。当前原型不会执行这些步骤。','A real flow confirms price and configuration on the brand’s official channel, completes identity and credit checks, and only then lets the user pay the deposit and lock the order. The prototype performs none of these steps.')}</div>
+        <div class="card-actions"><button class="secondary" data-action="restart">${tx('开始新询价','Start a new quote')}</button></div>
+      </section>`;
+    }
+    function updateNeeds(patch, explain=true, inferred={}) {
+      if(state.flow!=='active'){$('chat-status').textContent=tx('询价已停止，请先继续或开启新询价。','The quote is stopped; resume it or start a new one.');return;}
+      if(state.confirmed){addMessage(tx('本次演示已结束，请点击“开始新询价”。','This demo has finished; use “Start a new quote”.'));return;}
+      needsDraft=null;
+      clearTimeout(quoteTimer);sequence++;Object.keys(patch).forEach(k=>delete state.inferred[k]);Object.assign(state,patch);Object.assign(state.inferred,inferred);if(!state.model)state.model='any';state.started=true;state.revision++;state.quote=null;state.selected=null;state.loading=false;state.step=0;render();
+      if(explain)addMessage(tx('需求已更新，旧报价已失效。','Needs updated; the old quote has expired.'),false,tx('需求字段更新 → 旧报价失效','needs changed → old quote expired'));
+    }
+    function requestQuote() {
+      if(state.flow!=='active' || state.loading || state.step!==0 || state.confirmed)return;
+      if(state.quote && state.quote.revision===state.revision)return;
+      if(!state.city){addMessage(tx('还需要上牌城市：它影响落地价、牌照条件和交付门店，我不会按定位去猜。','I still need the plate city: it affects the on-the-road price, plate rules and delivery centre, and I will not guess it from your location.'));return;}
+      if(!state.payment){render();$('chat-status').textContent=tx('请选择付款方式。','Choose a payment method.');focusSurface();return;}
+      const token=++sequence,revision=state.revision;state.loading=true;state.quote=null;state.selected=null;render();
+      $('chat-status').textContent=tx('正在请求报价服务，尚未生成报价。','Calling the pricing service; no quote yet.');
+      if(followConversation)$('surface').querySelector('.quote-progress')?.scrollIntoView({block:'center'});
+      const finish=()=>{
+        // Only apply a response that still matches the current request.
+        if(token!==sequence || revision!==state.revision)return;
+        state.loading=false;state.quote={revision};render();
+        if(quoteChange==='battery')addMessage(state.battery==='rent'?tx('已切换为租电方案：车价按不含电池计算，另付电池月租。这是计价方式的变化，不是降价。','Switched to battery rental: the car price excludes the battery and a monthly battery fee is added. That is a different pricing structure, not a discount.'):tx('已切换回买断电池：车价包含电池，没有电池月租。','Switched back to buying the battery: the car price includes it and there is no monthly battery fee.'));
+        else $('chat-status').textContent=tx('报价已更新，可在卡片中比较和选择。','Prices updated; compare and choose on the card.');
+        quoteChange='';
+        if(followConversation && !needsDraft)$('surface').scrollIntoView({block:'start'});else $('new-update').classList.remove('hide');
+      };
+      if(TOUR)finish();else quoteTimer=setTimeout(finish,650);
+    }
+    function saveForm(form) {
+      const data=new FormData(form);
+      for(const key of ['name','phone','store','when'])if(data.has(key))state.applicant[key]=String(data.get(key)).trim();
+    }
+    function renderSuggestions(){renderSuggestionContent();renderSessionMenu();}
+    function renderSessionMenu(){
+      const more=[];
+      if(state.started && state.flow==='active' && !state.confirmed)more.push(['pause-flow',tx('暂停本次询价','Pause this quote')],['end-flow',tx('结束并清除草稿','End and clear draft')]);
+      $('dock-menu').innerHTML=more.map(([action,label])=>`<button data-dock="${action}">${label}</button>`).join('');
+      $('dock-more').hidden=!more.length;
+      $('dock-more').open=false;
+    }
+    function renderSuggestionContent(){
+      $('suggestions').replaceChildren();
+      $('chat-input').placeholder=state.flow!=='active'?tx('仍可提问，不会自动继续询价…','You can still ask; the quote will not resume by itself…')
+        :needsDraft?tx('先在卡片中重新报价，或取消修改…','Requote on the card first, or cancel the change…')
+        :!state.started?tx('例如：预算 25 万以内，续航 600 公里以上…','e.g. “under ¥250k, at least 600 km range”…')
+        :!state.city?tx('告诉我上牌城市…','Tell me the plate city…')
+        :!state.payment?tx('点上方卡片，或说“分期”…','Pick on the card above, or say “financing”…')
+        :state.step===0?tx('试试：续航 700 公里以上 / 落地价怎么算…','Try: “at least 700 km” / “what is in the on-the-road price”…')
+        :tx('可以继续提问，或在卡片中修改…','Ask more, or edit on the cards…');
+    }
+    function choosePayment(payment){
+      if(!PAYMENTS[payment] || state.confirmed)return;
+      if($('applicant-form'))saveForm($('applicant-form'));
+      updateNeeds({payment},false);
+      requestQuote();
+    }
+    function changePayment(){
+      if(!state.started || state.confirmed)return;
+      updateNeeds({payment:null},false);
+      $('chat-status').textContent=tx('请选择新的付款方式。原报价已失效。','Choose a new payment method. The old quote has expired.');
+      focusSurface();
+    }
+    function matches(t){return (state.budget===null || quoteFor(t).car<=state.budget) && (state.minRange===null || t.range>=state.minRange) && (state.maxAccel===null || t.accel<=state.maxAccel);}
+    function condLabel(k,v){return k==='budget'?tx(`指导价 ≤ ${wan(v)}`,`MSRP ≤ ${wan(v)}`):k==='minRange'?tx(`CLTC 续航 ≥ ${v} km`,`CLTC range ≥ ${v} km`):tx(`0–100 km/h ≤ ${v.toFixed(1)} s`,`0–100 km/h ≤ ${v.toFixed(1)} s`);}
+    function applyFilter(patch, inferred={}){
+      Object.keys(patch).forEach(k=>delete state.inferred[k]);
+      Object.assign(state,patch);Object.assign(state.inferred,inferred);
+      const t=currentTrim();
+      if(t && !matches(t))state.selected=null;
+      state.step=0;render();
+    }
+    function selectPlan(id){
+      if(needsDraft){$('chat-status').textContent=tx('请先重新报价或取消修改，不能选择旧报价。','Requote or cancel the change first; an old quote cannot be chosen.');return;}
+      const t=modelTrims().find(t=>t.id===id);
+      if(!state.quote || state.quote.revision!==state.revision || !t)return;
+      state.selected=t.id;
+      state.applicant.store=tx(`${CITIES[state.city]}示例交付中心 1`,`${cap(CITIES[state.city])} sample delivery centre 1`);
+      render();state.step=1;render();
+      $('chat-status').textContent=tx('已选版本，请填写虚构演示资料。','Trim chosen; fill in fictional demo details.');
+      focusSurface();
+      $('surface').scrollIntoView({block:'start'});
+    }
+    function focusSurface(){
+      requestAnimationFrame(()=>{
+        const payment=$('payment-title');
+        const target=payment?$('surface').querySelector('[data-payment]'):[...$('surface').querySelectorAll('input,button,summary')].find(el=>!el.disabled && el.getClientRects().length);
+        if(target)target.focus({preventScroll:true});
+        if(payment)payment.closest('section').scrollIntoView({block:'start'});
+      });
+    }
+
+    // ----- local intent rules (stand-in for an agent) ----------------------------
+    function parseNeeds(text){
+      const t=text.replace(/(\d),(\d{3})/g,'$1$2');
+      const out={};
+      if(/小米|su7|xiaomi/i.test(t))out.model='su7';
+      else if(/蔚来|et5|nio/i.test(t))out.model='et5';
+      else if(/比亚迪|海豹|byd|seal/i.test(t))out.model='seal';
+      else if(/不限车型|帮我挑|都可以|随便|any model|help me pick/i.test(t))out.model='any';
+      const city=[['sh',/上海|shanghai/i],['bj',/北京|beijing/i],['sz',/深圳|shenzhen/i],['hz',/杭州|hangzhou/i],['other',/其他城市|别的城市|other city/i]].find(([,re])=>re.test(t));
+      if(city)out.city=city[0];
+      if(/全款|一次性|现金|pay in full|full payment|cash/i.test(t))out.payment='full';
+      else if(/分期|贷款|月供|按揭|loan|financ/i.test(t))out.payment='loan';
+      if(/租电|电池租用|租用电池|baas|battery rental|rent the battery/i.test(t))out.battery='rent';
+      else if(/买断|buy the battery/i.test(t))out.battery='buy';
+      const range=t.match(/续航\D{0,6}?(\d{3,4})|(\d{3,4})\s*(?:公里|km)/i);
+      if(range)out.minRange=Number(range[1]||range[2]);
+      const zhBudget=t.match(/(-?\d+(?:\.\d+)?)\s*万/);
+      const enBudget=t.match(/(?:budget|under|up to|below|max)\D{0,6}?(-?\d+(?:\.\d+)?)\s*(k)?/i);
+      if(zhBudget)out.budget=Number(zhBudget[1])*10000;
+      else if(enBudget){const n=Number(enBudget[1]);out.budget=enBudget[2]?n*1000:n<1000?n*10000:n;}
+      // Fuzzy phrases → inferred conditions (shown as dashed “AI inferred” chips, never silently applied).
+      out.inferred={};
+      if(out.budget===undefined && /(二十|20)\s*(来|多|左右)\s*万|around\s*¥?\s*200k/i.test(t)){out.budget=250000;out.inferred.budget={value:250000,reason:tx('“二十来万”按 25 万以内理解','“around ¥200k” read as up to ¥250k')};}
+      if(out.minRange===undefined && /高速|长途|跑得远|经常出差|highway|long trips|road trips/i.test(t)){out.minRange=650;out.inferred.minRange={value:650,reason:tx('你提到经常跑高速 / 长途','you mentioned highway or long trips')};}
+      if(/加速|推背|性能|sporty|performance|quick acceleration/i.test(t)){out.maxAccel=4.0;out.inferred.maxAccel={value:4.0,reason:tx('你提到想要加速快','you want quick acceleration')};}
+      return out;
+    }
+    function mentionedTrims(t){
+      const out=[],add=id=>{const tr=ALL_TRIMS.find(x=>x.id===id);if(tr && !out.includes(tr))out.push(tr);};
+      const parts=t.split(/和|与|跟|还是|对比|vs\.?|versus|and|or|,|，/i);
+      for(const part of parts){
+        if(/su7|小米|xiaomi/i.test(part)){if(/max/i.test(part))add('su7-max');else if(/pro/i.test(part))add('su7-pro');else if(/标准|standard/i.test(part))add('su7-std');}
+        if(/et5|蔚来|nio/i.test(part)){if(/100/.test(part))add('et5-100');else if(/75/.test(part))add('et5-75');}
+        if(/海豹|seal|比亚迪|byd/i.test(part)){if(/550/.test(part))add('seal-550');else if(/650/.test(part))add('seal-650');else if(/四驱|awd/i.test(part))add('seal-awd');}
+      }
+      return out;
+    }
+    // Grounded explanation: every number in the text must come from service data, checked before showing.
+    function explainDiff(a,b,text){
+      const qa=quoteFor(a),qb=quoteFor(b),n=x=>trimName(x);
+      const diff=Math.abs(qa.car-qb.car),cheaper=qa.car<=qb.car?a:b,longer=a.range>=b.range?a:b;
+      const lines=[tx(`${n(a)} 和 ${n(b)}：`,`${n(a)} vs ${n(b)}:`),
+        tx(`· 指导价 ${wan(qa.car)} vs ${wan(qb.car)}，${n(cheaper)} 便宜 ${wan(diff)}`,`· MSRP ${wan(qa.car)} vs ${wan(qb.car)}; ${n(cheaper)} is ${wan(diff)} cheaper`),
+        tx(`· 落地价估算 ${wan(qa.landed)} vs ${wan(qb.landed)}`,`· On the road (est.) ${wan(qa.landed)} vs ${wan(qb.landed)}`),
+        tx(`· CLTC 续航 ${a.range} km vs ${b.range} km`,`· CLTC range ${a.range} km vs ${b.range} km`),
+        tx(`· 百公里加速 ${a.accel.toFixed(1)} s vs ${b.accel.toFixed(1)} s`,`· 0–100 km/h ${a.accel.toFixed(1)} s vs ${b.accel.toFixed(1)} s`)];
+      if(qa.rent||qb.rent)lines.push(tx('· 租电车型另付电池月租，不计入落地价','· battery-rental trims add a monthly battery fee outside the on-the-road price'));
+      lines.push(/高速|长途|highway|long/i.test(text)?tx(`常跑高速的话，续航更长的是 ${n(longer)}；但 CLTC 是工况值，实际会更短。选哪个由你决定。`,`For lots of highway driving, ${n(longer)} has the longer range — but CLTC is a test-cycle figure. The choice is yours.`):tx('更看重价格还是续航，决定了选哪一个；选择留给你。','Whether price or range matters more decides which one fits — the choice is yours.'));
+      const msg=lines.join('\n');
+      const facts=new Set(['0','100']);
+      [a,b].forEach(t=>{const q=quoteFor(t);[wan(q.car),wan(q.landed),wan(diff),yuan(q.rent)].forEach(v=>v.match(/\d[\d,.]*/g)?.forEach(x=>facts.add(x)));[t.range,t.accel.toFixed(1)].forEach(x=>facts.add(String(x)));t.label.match(/\d+/g)?.forEach(x=>facts.add(x));(t.car.name.match(/\d+/g)||[]).forEach(x=>facts.add(x));});
+      const nums=msg.match(/\d[\d,.]*\d|\d/g)||[];
+      const bad=nums.filter(x=>!facts.has(x));
+      if(bad.length){addMessage(tx('有数字无法和报价服务数据核对，这段解释已被拦下。','Some numbers could not be checked against the pricing data, so this explanation was blocked.'));return;}
+      addMessage(msg,false,tx(`引用 ${nums.length} 个数字 · 均与报价服务数据一致`,`cites ${nums.length} numbers · all match the pricing data`),'ai-explain');
+    }
+    function handlePrompt(text) {
+      followConversation=true;$('new-update').classList.add('hide');
+      if($('applicant-form'))saveForm($('applicant-form'));
+      addMessage(text,true);
+      const command=text.trim().replace(/[。！!，,？?.\s]+$/g,'');
+      const RESTART=/^(?:重新询价|重新开始|开始新的?询价|restart|start over|new quote)$/i;
+      if(state.confirmed){if(RESTART.test(command))reset();else addMessage(tx('本次演示已结束，不会再修改旧订单。点击“开始新询价”开始新的需求。','This demo has finished and the old order will not change. Use “Start a new quote” for new needs.'));return;}
+      if(/@|\d{7,}|身份证|驾驶证|证件号|银行卡|passport|licen[cs]e number|card number|\bID number/i.test(text)){addMessage(tx('请勿在对话中填写手机号或证件资料。资料只在受控表单里填写，而且仅限虚构演示内容。','Please do not type phone or ID details into the chat. Details go only into the controlled form, and only fictional demo data.'));return;}
+      if(/^(?:先暂停|暂停(?:询价|一下|本次询价)?|先停一下|我再考虑一下|稍后再看|pause|hold on|not now|later)$/i.test(command)){
+        if(state.flow==='active' && state.started)pauseFlow();else addMessage(state.flow==='paused'?tx('询价已经暂停，没有后台任务。','The quote is already paused; nothing runs in the background.'):tx('当前没有进行中的询价，可以开始新询价。','There is no quote in progress; you can start a new one.'));return;
+      }
+      if(/^(?:(?:结束|中止|终止|取消)(?:本次|这个)?询价|end(?: the)? quote|cancel(?: the)? quote)$/i.test(command)){requestEndFlow();return;}
+      if(/^(?:继续|继续询价|继续本次询价|resume|continue)$/i.test(command) && state.flow==='paused'){resumeFlow();return;}
+      if(state.flow==='ended' && RESTART.test(command)){reset();return;}
+      if(state.flow!=='active'){
+        if(explain(text))return;
+        addMessage(state.flow==='paused'?tx('询价保持暂停，需求没有修改。请点“继续本次询价”再修改，或继续提问。','The quote stays paused and nothing changed. Resume it to make changes, or keep asking.'):tx('本次询价已经结束，旧草稿不可继续。可开始新询价，或继续提问。','This quote has ended and the old draft cannot continue. Start a new quote, or keep asking.'));return;
+      }
+      const pair=mentionedTrims(text);
+      const shown=state.quote?modelTrims().filter(matches):[];
+      if(pair.length>=2 || (/区别|对比|差别|哪个好|哪个更|difference|which (?:one|is better)|\bvs\b/i.test(text) && shown.length>=2)){
+        const [a,b]=pair.length>=2?pair:shown;
+        explainDiff(a,b,text);
+        lastTrace={input:text,intent:'compare_trims',toolCalls:[{tool:'get_trims',args:{ids:[a.id,b.id]}},{tool:'get_quote',args:{ids:[a.id,b.id],payment:state.payment,battery:state.battery}}],modelOutput:'explanation text (numbers checked against tool results before display)',rendered:['message']};
+        render();return;
+      }
+      const n=parseNeeds(text);
+      if(n.budget!==undefined && !(n.budget>0)){addMessage(tx('预算需要大于 0；当前需求没有变更。','The budget must be above 0; nothing was changed.'));return;}
+      const needPatch={}; NEEDS_KEYS.forEach(k=>{if(n[k]!==undefined && n[k]!==state[k])needPatch[k]=n[k];});
+      const filterPatch={}; FILTER_KEYS.forEach(k=>{if(n[k]!==undefined)filterPatch[k]=n[k];});
+      const inferred=n.inferred||{};
+      if(!Object.keys(needPatch).length && !Object.keys(filterPatch).length){if(explain(text))return;addMessage(tx('这是有限意图的本地模拟，还不能理解这句话。可以点卡片，或说“预算 25 万以内，杭州上牌，全款”；没有信息被发送给 AI 服务。','This is a local simulation with a limited set of intents, and it did not understand that. Use the cards, or say “under ¥250k, plates in Hangzhou, full payment”; nothing is sent to an AI service.'));return;}
+      const explicitFilters=Object.fromEntries(Object.entries(filterPatch).filter(([k])=>!inferred[k]));
+      lastTrace={input:text,intent:'update_needs',toolCalls:[...(Object.keys(needPatch).length?[{tool:'update_needs',args:needPatch}]:[]),...(Object.keys(explicitFilters).length?[{tool:'set_filters',args:explicitFilters}]:[]),...(Object.keys(inferred).length?[{tool:'propose_inferred_filters',args:Object.fromEntries(Object.entries(inferred).map(([k,v])=>[k,{value:v.value,reason:v.reason}])),note:'shown as dashed chips; user confirms or removes'}]:[])],missing:[!(needPatch.city||state.city)&&'city',!(needPatch.payment||state.payment)&&'payment'].filter(Boolean)};
+      const got=[n.model&&MODELS[n.model],n.city&&cityText(n.city),n.payment&&PAYMENTS[n.payment],n.battery==='rent'&&tx('租电','battery rental'),...FILTER_KEYS.filter(k=>n[k]!==undefined).map(k=>(inferred[k]?tx('推断 ','inferred ')+condLabel(k,n[k]):condLabel(k,n[k])))].filter(Boolean);
+      const inferNote=Object.keys(inferred).length?tx(' 带“推断”的条件是我根据你的描述猜的，请在卡片里确认或删掉。',' Conditions marked “inferred” are my guesses from what you said — confirm or remove them on the card.'):'';
+      if(Object.keys(needPatch).length || !state.started){
+        if(needPatch.battery)quoteChange='battery';
+        updateNeeds({...needPatch,...filterPatch},false,inferred);
+        addMessage(tx(`已记录：${got.join('，')}。${!state.city?'还差上牌城市：它影响落地价和交付门店，我不会按定位去猜。':!state.payment?'接下来选全款还是分期。':'正在请求报价。'}`,`Recorded: ${got.join(', ')}. ${!state.city?'I still need the plate city — it affects the on-the-road price and delivery centre, and I will not guess it from your location.':!state.payment?'Next: full payment or financing?':'Requesting prices.'}`)+inferNote);
+        requestQuote();
+        lastTrace.rendered=components().map(c=>c.component);lastTrace.toolCalls.push({tool:'request_quote',args:{}});render();return;
+      }
+      applyFilter(filterPatch,inferred);
+      addMessage(tx(`已按条件筛选：${got.join('，')}。只按条件筛选，不代表推荐。`,`Filtered: ${got.join(', ')}. Filtered by your conditions — not a recommendation.`)+inferNote);
+      lastTrace.rendered=components().map(c=>c.component);render();
+    }
+    function explain(text){
+      if(/落地|购置税|上牌费|on-the-road|purchase tax/i.test(text)){addMessage(tx('落地价 = 车价 + 购置税（2026 年起新能源车减半征收，示例按此估算）+ 上牌服务费；保险另计。分期时还要看首付和月供。','On-the-road price = car price + purchase tax (halved for NEVs from 2026; the sample uses that) + registration fee; insurance is extra. With financing, also check the down payment and monthly payment.'));return true;}
+      if(/续航|cltc|range/i.test(text)){addMessage(tx('卡片上的续航是 CLTC 工况值，冬季和高速的实际续航会更短。我已打开参数比较。','The range on the cards is the CLTC test-cycle figure; real range in winter or on highways is shorter. I opened the spec comparison.'),false,tx('打开参数比较','opened the spec comparison'));$('compare-dialog').showModal();return true;}
+      if(/比较|区别|compare|difference/i.test(text)){$('compare-dialog').showModal();addMessage(tx('已打开参数比较。注意 CLTC 续航和指导价各自的口径。','Opened the spec comparison. Note what CLTC range and MSRP each mean.'));return true;}
+      return false;
+    }
+
+    // ----- events ------------------------------------------------------------------
+    $('chat-form').addEventListener('submit',e=>{e.preventDefault();const text=$('chat-input').value.trim();if(text){$('chat-input').value='';handlePrompt(text);}});
+    $('dock-menu').addEventListener('click',e=>{
+      const button=e.target.closest('[data-dock]');if(!button)return;
+      $('dock-more').open=false;followConversation=true;$('new-update').classList.add('hide');
+      performAction(button.dataset.dock);
+    });
+    function openToolDialog(id){$('tools-menu').open=false;$(id).showModal();}
+    $('references').addEventListener('click',()=>openToolDialog('references-dialog'));
+    $('inspect').addEventListener('click',()=>openToolDialog('mechanism-dialog'));
+    $('demo-details').addEventListener('click',()=>openToolDialog('about-dialog'));
+    document.addEventListener('click',e=>{if(!e.target.closest('#tools-menu'))$('tools-menu').open=false;if(!e.target.closest('#dock-more'))$('dock-more').open=false;});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('tools-menu').open=false;$('dock-more').open=false;}});
+    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+    $('end-confirm').addEventListener('click',endFlow);
+    $('surface').addEventListener('change',e=>{
+      const map={'need-model':'model','need-city':'city','need-payment':'payment'};
+      if(map[e.target.id]){editNeeds({[map[e.target.id]]:e.target.value},'#'+e.target.id);return;}
+      if(e.target.id==='demo-consent')$('confirm-demo').disabled=!e.target.checked;
+    });
+    $('surface').addEventListener('submit',e=>{
+      if(e.target.id!=='applicant-form')return;e.preventDefault();saveForm(e.target);
+      if(!state.applicant.name){$('form-error').textContent=tx('演示称呼不能仅为空格。','The demo name cannot be blank.');return;}
+      if(!validSelection()){$('form-error').textContent=tx('报价已失效，请返回重新报价。','The quote has expired; go back and requote.');return;}
+      followConversation=true;$('new-update').classList.add('hide');
+      state.step=2;render();$('chat-status').textContent=tx('请核对演示订单和资料，阅读声明后确认。','Check the demo order and details, read the statement, then confirm.');
+      focusSurface();$('surface').scrollIntoView({block:'start'});
+    });
+    $('surface').addEventListener('click',e=>{
+      const button=e.target.closest('button');if(!button || button.disabled)return;
+      followConversation=true;$('new-update').classList.add('hide');
+      const action=button.dataset.action;
+      if(['pause-flow','resume-flow','end-flow'].includes(action)){performAction(action);return;}
+      if(state.flow!=='active' && action!=='restart')return;
+      if(button.dataset.intent){updateNeeds({model:button.dataset.intent},false);$('surface').scrollIntoView({block:'start'});return;}
+      if(button.dataset.city){editNeeds({city:button.dataset.city});applyNeedsDraft();return;}
+      if(button.dataset.budget){applyFilter({budget:button.dataset.budget==='all'?null:Number(button.dataset.budget)});return;}
+      if(button.dataset.confirm){delete state.inferred[button.dataset.confirm];render();$('chat-status').textContent=tx('已确认 AI 推断的条件。','AI-inferred condition confirmed.');return;}
+      if(button.dataset.drop){applyFilter({[button.dataset.drop]:null});return;}
+      if(button.dataset.battery){if(button.dataset.battery!==state.battery){quoteChange='battery';updateNeeds({battery:button.dataset.battery},false);requestQuote();}return;}
+      if(button.dataset.payment){choosePayment(button.dataset.payment);return;}
+      performAction(action,button.dataset.id);
+    });
+    function performAction(action,id){
+      if(action==='pause-flow'){pauseFlow();return;}
+      if(action==='resume-flow'){resumeFlow();return;}
+      if(action==='end-flow'){requestEndFlow();return;}
+      if(action==='restart'){reset();return;}
+      if(state.flow!=='active' || state.confirmed){$('chat-status').textContent=tx('当前询价不可修改，请继续或开始新的询价。','This quote cannot be changed; resume it or start a new one.');return;}
+      switch(action){
+        case 'change-payment':changePayment();break;
+        case 'quote':applyNeedsDraft();break;
+        case 'cancel-needs':needsDraft=null;refreshNeedsEditor();$('needs-editor').querySelector('summary').focus({preventScroll:true});break;
+        case 'select':selectPlan(id);break;
+        case 'compare':$('compare-dialog').showModal();break;
+        case 'clear-filters':applyFilter({budget:null,minRange:null,maxAccel:null});break;
+        case 'back':if($('applicant-form'))saveForm($('applicant-form'));state.step=0;render();break;
+        case 'edit':state.step=1;render();break;
+        case 'confirm':if(state.step===2 && validSelection() && $('demo-consent')?.checked){state.confirmed=true;render();$('chat-status').textContent=tx('演示已完成，未支付定金或锁单。','Demo complete; no deposit paid, no order locked.');$('surface').scrollIntoView({block:'start'});}break;
+        default:$('chat-status').textContent=tx('当前步骤已变化，请使用最新操作。','The step has changed; use the latest actions.');renderSessionMenu();
+      }
+    }
+    // Stop auto-following new messages once the user scrolls back up; resume at the bottom.
+    addEventListener('wheel',e=>{if(e.deltaY<0)followConversation=false;},{passive:true});
+    let touchY=0;
+    addEventListener('touchstart',e=>{touchY=e.touches[0].clientY;},{passive:true});
+    addEventListener('touchmove',e=>{if(e.touches[0].clientY>touchY+5)followConversation=false;},{passive:true});
+    addEventListener('keydown',e=>{if(!e.target.matches('input,select,textarea')&&['PageUp','Home','ArrowUp'].includes(e.key))followConversation=false;});
+    addEventListener('scroll',()=>{if(document.documentElement.scrollHeight-scrollY-innerHeight<35){followConversation=true;$('new-update').classList.add('hide');}},{passive:true});
+    $('new-update').addEventListener('click',()=>{followConversation=true;$('new-update').classList.add('hide');$('surface').scrollIntoView({block:'start'});focusSurface();});
+
+    // ----- tour mode -----------------------------------------------------------------
+    // The blog post's slide deck sends {tour:'step', id}; each step replays from a fresh
+    // state so slides can be visited in any order. Highlights mark what the slide covers.
+    if(TOUR){
+      document.body.classList.add('tour');
+      // Keep scrolling and focus inside the iframe so the host page never jumps.
+      Element.prototype.scrollIntoView=function(){if(this.closest('dialog'))return;scrollBy(0,this.getBoundingClientRect().top-stickyTop()-14);};
+      HTMLElement.prototype.focus=function(){};
+    }
+    const toCity=()=>updateNeeds({model:'su7'},false);
+    const toPayment=()=>{toCity();editNeeds({city:'hz'});applyNeedsDraft();};
+    const toOptions=()=>{toPayment();choosePayment('full');};
+    const openNeeds=()=>{const d=$('surface').querySelector('.needs-summary');if(d)d.open=true;};
+    const toForm=()=>{toOptions();selectPlan('su7-pro');};
+    const toReview=()=>{toForm();$('applicant-form').requestSubmit();};
+    const STEPS={
+      start:{run:()=>{},hl:['.intent-grid','.compose']},
+      ask:{run:toCity,hl:['.usage-options']},
+      payment:{run:toPayment,hl:['.payment-choices']},
+      sentence:{run:()=>handlePrompt(tx('预算 25 万以内，续航 600 公里以上，上海上牌，分期','Under ¥250k, at least 600 km range, plates in Shanghai, financing')),hl:['.message.user .bubble','.match-note','.plans']},
+      infer:{run:()=>handlePrompt(tx('经常跑高速，二十来万，杭州上牌，全款','Lots of highway trips, around ¥200k, plates in Hangzhou, pay in full')),hl:['.cond.ai']},
+      units:{run:()=>{toOptions();$('compare-dialog').showModal();},hl:['#compare-dialog .table-scroll','#compare-dialog .notice']},
+      explain:{run:()=>{toOptions();handlePrompt(tx('小米 SU7 Pro 和比亚迪海豹 650 有什么区别？','Xiaomi SU7 Pro vs BYD Seal 650 — what is the difference?'));},hl:['.ai-explain .bubble','.ai-explain .mini-event']},
+      staged:{run:()=>{toOptions();openNeeds();editNeeds({model:'seal'});},hl:['.edit-note','[data-quote-content]']},
+      switch:{run:()=>{updateNeeds({model:'et5',city:'hz',payment:'full'},false);requestQuote();quoteChange='battery';updateNeeds({battery:'rent'},false);requestQuote();},hl:['[data-quote-content] > .notice','.history-card.stale']},
+      form:{run:toForm,hl:['#applicant-form','.surface-label']},
+      review:{run:toReview,hl:['.check','#confirm-demo']},
+      summary:{run:()=>{toReview();$('demo-consent').checked=true;performAction('confirm');},hl:['.application-status']},
+      mechanism:{run:()=>{handlePrompt(tx('经常跑高速，二十来万，杭州上牌，全款','Lots of highway trips, around ¥200k, plates in Hangzhou, pay in full'));openToolDialog('mechanism-dialog');},hl:['#trace']}
+    };
+    reset();
+    if(TOUR){
+      addEventListener('message',e=>{
+        if(e.source!==parent || e.data?.tour!=='step')return;
+        const step=STEPS[e.data.id];if(!step)return;
+        reset();step.run();
+        document.querySelectorAll('.hl').forEach(el=>el.classList.remove('hl'));
+        step.hl.forEach(sel=>document.querySelectorAll(sel).forEach(el=>el.classList.add('hl')));
+        const first=document.querySelector(step.hl[0]);
+        if(first && $('messages').contains(first))requestAnimationFrame(()=>requestAnimationFrame(()=>first.scrollIntoView()));
+      });
+      parent.postMessage({tour:'ready'},'*');
+    }
+  </script>
+</body>
+</html>

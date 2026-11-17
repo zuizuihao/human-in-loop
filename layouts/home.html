@@ -1,0 +1,51 @@
+{{- define "main" }}
+{{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections }}
+{{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" }}
+{{- $latest := first 10 $pages.ByDate.Reverse }}
+{{- $postsPage := site.GetPage "/posts" }}
+
+{{- with site.Params.homeInfoParams }}
+<section class="home-hero">
+  <div class="home-hero__art">
+    {{- $art := readFile "static/images/hero-3d.svg" }}
+    {{- range slice "agent" "rag" "llm" }}
+      {{- $term := site.GetPage (printf "/tags/%s" .) }}
+      {{- if not $term }}
+        {{- errorf "Missing home hero topic: %s (%s)" . site.Language.Lang }}
+      {{- else }}
+        {{- $art = replace $art (printf `href="/tags/%s/"` .) (printf `href="%s"` $term.RelPermalink) }}
+      {{- end }}
+    {{- end }}
+    {{ $art | safeHTML }}
+  </div>
+  <div class="home-hero__content">
+    <p class="home-hero__eyebrow"><span></span>HUMAN IDEAS. AI POSSIBILITIES.</p>
+    <h1 class="home-hero__title">{{ .Title | markdownify }}</h1>
+    <p class="home-hero__lead">{{ .Content | markdownify }}</p>
+  </div>
+</section>
+{{- end }}
+
+<div class="home-section-head">
+  <h2>{{ i18n "home_latest" }}</h2>
+  <span class="home-section-stats">{{ i18n "home_stats" (dict "posts" (len $pages) "tags" (len site.Taxonomies.tags)) }}</span>
+  <a class="home-section-browse" href="{{ $postsPage.RelPermalink }}">{{ i18n "home_all_posts" }} <span aria-hidden="true">&rarr;</span></a>
+</div>
+{{- with site.Taxonomies.tags }}
+<nav class="home-topics home-topics--latest" aria-label="{{ i18n "home_topics" }}">
+  {{- range first 8 .ByCount }}
+  <a class="home-chip" href="{{ .Page.RelPermalink }}">{{ .Page.Title }}<span>{{ .Count }}</span></a>
+  {{- end }}
+</nav>
+{{- end }}
+
+<div class="home-list">
+{{- range $latest }}
+{{ partial "post_card.html" . }}
+{{- end }}
+</div>
+
+<div class="home-all-posts">
+  <a href="{{ $postsPage.RelPermalink }}">{{ i18n "home_all_posts" }} <span aria-hidden="true">&rarr;</span></a>
+</div>
+{{- end }}

@@ -1,0 +1,129 @@
+.posts-index__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 18px;
+    padding: 16px 0;
+}
+
+.posts-index__header h1 {
+    font-size: 28px;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
+}
+
+.posts-index__description {
+    flex-basis: 100%;
+    color: var(--secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.posts-index__stats {
+    color: var(--secondary);
+    font-size: 13px;
+}
+
+.posts-year {
+    margin-top: 20px;
+}
+
+.posts-year > h2 {
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--secondary);
+}
+
+.posts-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 18px;
+    gap: 18px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+}
+
+.posts-row__date {
+    padding-top: 4px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.posts-row h3 {
+    min-width: 0;
+    font-size: 18px;
+    line-height: 1.55;
+    font-weight: 600;
+}
+
+.posts-row__body {
+    min-width: 0;
+}
+
+.posts-row h3 a:hover,
+.posts-row__tags a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.posts-row a:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 4px;
+    border-radius: 2px;
+}
+
+.posts-row__description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--secondary);
+}
+
+.posts-row__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 10px;
+    list-style: none;
+    color: var(--secondary);
+    font-size: 12px;
+}
+
+.posts-row__arrow {
+    padding-top: 3px;
+    color: var(--secondary);
+}
+
+.posts-row:hover .posts-row__arrow,
+.posts-row:focus-within .posts-row__arrow {
+    color: var(--primary);
+}
+
+@media (max-width: 640px) {
+    .posts-index__header {
+        padding-top: 12px;
+    }
+
+    .posts-year {
+        margin-top: 16px;
+    }
+
+    .posts-row {
+        gap: 12px;
+        grid-template-columns: 40px minmax(0, 1fr);
+        padding: 20px 0;
+    }
+
+    .posts-row h3 {
+        font-size: 17px;
+    }
+
+    .posts-row__arrow {
+        display: none;
+    }
+}

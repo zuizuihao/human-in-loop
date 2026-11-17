@@ -1,0 +1,57 @@
+/* 左侧导航（带文字标签）与侧拉面板：Skill 库 / 资产 */
+#tools button[data-fly]{height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:18px}
+#tools button[data-fly] em{font-style:normal;font-size:11px;color:var(--mute)}
+#tools button.on{background:var(--acc-soft)}
+#tools button.on em{color:var(--acc);font-weight:600}
+
+#fly{position:absolute;left:12px;top:12px;bottom:12px;width:360px;background:var(--panel);border-radius:16px;box-shadow:var(--shadow);
+  display:none;flex-direction:column;z-index:16;cursor:default;animation:slide .16s ease-out}
+#fly.on{display:flex}
+@keyframes slide{from{opacity:0;transform:translateX(-10px)}}
+#fly .fh{display:flex;align-items:center;padding:12px 14px 8px;font-size:14px}
+#fly .fh b{flex:1}
+#fly .fh button{width:28px;height:28px;border-radius:8px;color:var(--mute)}
+#fly .fh button:hover{background:var(--panel2)}
+#flyBody{flex:1;overflow:auto;padding:0 14px 14px}
+.hint2{color:var(--mute);font-size:12px;margin:2px 0 10px}
+
+/* Skill 卡片 */
+.tcard{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;cursor:pointer;transition:.15s}
+.tcard:hover{border-color:var(--acc);box-shadow:0 0 0 3px #4d6bfe14}
+.tcard.cur{border-color:var(--acc);background:#fafbff}
+.th{display:flex;align-items:center;gap:10px}
+.tic{width:36px;height:36px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.th.big .tic{width:46px;height:46px;font-size:26px;border-radius:14px}
+.tn{flex:1;min-width:0}.tn b{display:block}.tn small{color:var(--mute);font-size:12px}
+.badge{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--grad);color:#fff}
+.tcard p,.desc{color:#4e5969;font-size:12px;margin:8px 0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips span{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--panel2);color:#4e5969}
+
+/* Skill 详情 */
+.back{color:var(--acc);font-size:12px;margin-bottom:8px}
+#flyBody h5{font-size:13px;margin:16px 0 6px}
+.beats{border-left:2px solid #dfe3ff;margin-left:4px}
+.beat{display:flex;gap:10px;padding:4px 0 8px 12px;position:relative}
+.beat:before{content:"";position:absolute;left:-6px;top:9px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--acc)}
+.beat .bt{flex:none;width:58px;font-size:11px;color:var(--acc);font-weight:600;padding-top:2px}
+.beat b{display:block;font-size:12px}.beat small{color:var(--mute);font-size:12px}
+#flyBody ul{list-style:none;font-size:12px;color:#4e5969}
+#flyBody li{padding:3px 0 3px 20px;position:relative}
+#flyBody ul.ok li:before{content:"✓";position:absolute;left:2px;color:var(--ok);font-weight:700}
+#flyBody ul.no li:before{content:"✕";position:absolute;left:2px;color:var(--err);font-weight:700}
+.agents{display:grid;gap:6px;margin-top:8px}
+.ag{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:10px;border:1px solid var(--line)}
+.ag .av{width:26px;height:26px;border-radius:8px;background:var(--acc-soft);display:flex;align-items:center;justify-content:center;flex:none}
+.ag b{display:block;font-size:12px}.ag small{color:var(--mute);font-size:11px}
+.ents{display:flex;flex-wrap:wrap;gap:6px}
+.ents span{font-size:12px;padding:3px 9px;border-radius:9px;background:var(--panel2)}
+.sample{font-size:12px;color:#4e5969;background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:8px 10px;white-space:pre-wrap}
+.use{position:sticky;bottom:-14px;background:linear-gradient(#fff0,#fff 30%);padding:16px 0 14px;margin-top:6px}
+.use .btn{width:100%}
+
+/* 资产列表 */
+.item{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;transition:.15s}
+.item:hover{border-color:var(--acc);background:#fafbff}
+.item .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;background:var(--panel2) center/cover}
+.item b{display:block}.item small{display:block;color:var(--mute);font-size:12px}

@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 改图弹框 · 原型</title>
+<!--
+  Standalone prototype of the "edit this image with AI" dialog, styled after Midjourney's web app.
+  Self-contained: no dependencies, no project data. Images are drawn as SVG and generation is simulated.
+
+  Flow: open from a card -> pick a recipe / style / materials from the prompt bar (or just type) -> generate
+        -> pick one result -> write it back as a NEW candidate.
+  - 素材 (materials): extra reference images from this board, the asset library or an upload.
+  - 风格 (styles): one style card; here it is previewed with a CSS filter, the real app sends its keywords.
+  - 方案 (recipes): depend on the asset type and its pipeline step (see `assets`).
+-->
+<style>
+  :root {
+    --background: #0b0c0f;
+    --surface: #14161b;
+    --surface-raised: #1b1e25;
+    --surface-hover: #232731;
+    --border: #272b35;
+    --text: #e8eaf0;
+    --text-muted: #8a90a0;
+    --accent: #7c8cff;
+    --accent-strong: #5b6cff;
+    --success: #3ddc97;
+    --warning: #f5b94a;
+    --radius: 14px;
+    --radius-small: 9px;
+    --shadow: 0 24px 80px #000a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background: var(--background);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  textarea:focus-visible { outline: none; }
+  svg { display: block; width: 100%; height: 100%; }
+  .spacer { flex: 1; }
+
+  /* ---------- demo page behind the dialog ---------- */
+  .page { max-width: 1180px; margin: 0 auto; padding: 36px 28px 60px; }
+  .page-title { font-size: 20px; font-weight: 600; }
+  .page-note { color: var(--text-muted); margin: 4px 0 24px; }
+  .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+  .asset-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .asset-card header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .asset-card h2 { font-size: 15px; }
+  .asset-card .step { color: var(--text-muted); font-size: 12px; }
+  .asset-card .kind { margin-left: auto; font-size: 11px; color: var(--accent); background: #7c8cff1f; border-radius: 999px; padding: 1px 8px; }
+  .asset-preview { border-radius: var(--radius-small); overflow: hidden; background: var(--surface-raised); }
+  .candidate-strip { display: flex; gap: 6px; margin: 10px 0; overflow-x: auto; }
+  .candidate { position: relative; flex: none; width: 54px; border-radius: 7px; overflow: hidden; border: 2px solid transparent; background: var(--surface-raised); }
+  .candidate.picked { border-color: var(--accent); }
+  .candidate .tag { position: absolute; left: 2px; bottom: 2px; font-size: 9px; background: #000b; padding: 0 4px; border-radius: 4px; }
+  .candidate.is-new .tag { background: var(--success); color: #04120b; }
+  .primary-button {
+    width: 100%; padding: 8px 12px; border-radius: var(--radius-small); font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #fff;
+  }
+  .primary-button:hover { filter: brightness(1.1); }
+
+  /* ---------- dialog ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: #000c; backdrop-filter: blur(6px); padding: 3vh 3vw; }
+  .editor {
+    width: min(1360px, 100%); height: min(900px, 100%);
+    display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .editor-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .editor-title { font-size: 16px; font-weight: 600; }
+  .editor-subtitle { color: var(--text-muted); font-size: 12px; }
+  .backfill-button { padding: 8px 16px; border-radius: 999px; font-weight: 600; color: #04120b; background: var(--success); }
+  .backfill-button:disabled { background: var(--surface-raised); color: var(--text-muted); cursor: not-allowed; }
+  .icon-button { width: 34px; height: 34px; border-radius: 50%; color: var(--text-muted); font-size: 16px; flex: none; }
+  .icon-button:hover { background: var(--surface-hover); color: var(--text); }
+
+  .working-panel { padding: 18px; border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .panel-label { font-size: 12px; color: var(--text-muted); letter-spacing: .04em; }
+  .working-image { border-radius: var(--radius); overflow: hidden; background: var(--surface-raised); border: 1px solid var(--border); }
+  .working-caption { font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; gap: 8px; }
+  .link-button { color: var(--accent); font-size: 12px; }
+  .link-button:hover { text-decoration: underline; }
+  .lock-list { display: flex; flex-direction: column; gap: 6px; }
+  .lock-chip { font-size: 12px; color: var(--text-muted); background: var(--surface-raised); border-radius: 8px; padding: 5px 9px; }
+
+  .stream { overflow-y: auto; padding: 20px 22px 8px; display: flex; flex-direction: column; gap: 26px; scroll-behavior: smooth; }
+  .empty-state { margin: auto; text-align: center; color: var(--text-muted); max-width: 380px; }
+  .empty-state strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 6px; }
+  .round-head { display: flex; align-items: baseline; gap: 8px 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .round-index { font-size: 12px; color: var(--text-muted); }
+  .round-tag { font-size: 12px; color: var(--accent); background: #7c8cff1f; border-radius: 999px; padding: 1px 9px; }
+  .round-tag.style { color: #c58bff; background: #c58bff1f; }
+  .round-prompt { flex: 1 1 320px; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .round-meta { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .result-grid { display: grid; gap: 10px; }
+  .tile {
+    position: relative; border-radius: var(--radius); overflow: hidden; cursor: pointer; background: var(--surface-raised);
+    border: 2px solid transparent; transition: border-color .15s;
+  }
+  .tile:hover { border-color: var(--border); }
+  .tile.selected { border-color: var(--accent); box-shadow: 0 0 0 4px #7c8cff33; }
+  .tile.loading { cursor: progress; }
+  .tile-art { position: absolute; inset: 0; }
+  .tile-label { position: absolute; left: 8px; top: 8px; font-size: 11px; background: #000a; padding: 1px 8px; border-radius: 999px; }
+  .tile-check { position: absolute; right: 8px; top: 8px; width: 24px; height: 24px; border-radius: 50%; display: none; align-items: center; justify-content: center; background: var(--accent); color: #fff; font-size: 14px; }
+  .tile.selected .tile-check { display: flex; }
+  .tile-references { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
+  .tile-reference { width: 28px; border-radius: 5px; overflow: hidden; border: 1px solid #fff6; background: #000; }
+  .tile-actions { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 8px 8px; display: flex; gap: 6px; justify-content: center; background: linear-gradient(transparent, #000c); opacity: 0; transition: opacity .15s; }
+  .tile:hover .tile-actions, .tile:focus-within .tile-actions { opacity: 1; }
+  .tile-action { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #ffffff26; backdrop-filter: blur(6px); }
+  .tile-action:hover { background: #ffffff40; }
+  .skeleton { width: 100%; height: 100%; background: linear-gradient(100deg, var(--surface-raised) 30%, var(--surface-hover) 50%, var(--surface-raised) 70%); background-size: 300% 100%; animation: shimmer 1.3s linear infinite; }
+  .skeleton-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-muted); }
+  @keyframes shimmer { to { background-position: -300% 0; } }
+
+  /* ---------- prompt bar ---------- */
+  .prompt-bar { position: relative; grid-column: 1 / -1; padding: 12px 18px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; background: var(--surface); }
+  .toolbar-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tool-button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px; border-radius: 999px; background: var(--surface-raised); border: 1px solid var(--border); font-size: 13px; }
+  .tool-button:hover { background: var(--surface-hover); }
+  .tool-button.open { border-color: var(--accent); color: var(--accent); }
+  .tool-button .value { color: var(--accent); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mode-tag { font-size: 12px; color: var(--text-muted); }
+  .input-row { display: flex; gap: 12px; align-items: stretch; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+  .input-row:focus-within { border-color: var(--accent); }
+  .reference-chips { display: flex; gap: 8px; align-items: center; flex: none; max-width: 46%; overflow-x: auto; }
+  .reference-chip { position: relative; width: 56px; flex: none; border-radius: 9px; overflow: hidden; border: 1px solid #ffffff3a; background: var(--surface); }
+  .reference-chip .role { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; text-align: center; background: #000b; }
+  .reference-chip .remove { position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #000c; font-size: 10px; display: none; align-items: center; justify-content: center; }
+  .reference-chip:hover .remove { display: flex; }
+  .style-chip { align-self: center; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: #c58bff1f; color: #c58bff; font-size: 12px; }
+  textarea { flex: 1; min-width: 0; resize: none; background: transparent; border: 0; outline: 0; color: var(--text); font: inherit; font-size: 15px; padding: 4px 6px; }
+  textarea::placeholder { color: var(--text-muted); }
+  .generate-button { flex: none; min-width: 150px; padding: 0 18px; border-radius: 11px; font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-strong)); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.3; }
+  .generate-button small { font-weight: 400; opacity: .85; font-size: 11px; }
+  .generate-button:disabled { background: var(--surface-hover); color: var(--text-muted); cursor: not-allowed; }
+  .generate-button.needs-input { background: transparent; border: 1px dashed var(--accent); color: var(--accent); }
+
+  /* ---------- library panel (materials / styles / recipes) ---------- */
+  .library-panel { position: absolute; left: 18px; bottom: calc(100% + 8px); z-index: 10; width: min(820px, calc(100% - 36px)); height: min(560px, calc(100vh - 260px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .panel-tabs { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .panel-tab { padding: 5px 14px; border-radius: 999px; color: var(--text-muted); }
+  .panel-tab:hover { color: var(--text); }
+  .panel-tab.active { background: var(--surface-raised); color: var(--text); font-weight: 600; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+  .panel-body h3 { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px; letter-spacing: .04em; }
+  .panel-hint { font-size: 12px; color: var(--text-muted); }
+  .material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+  .material-art { aspect-ratio: 1 / 1; background: var(--surface); }
+  .material-art > svg, .material-art > img { width: 100%; height: 100%; object-fit: cover; }
+  .material { position: relative; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background: var(--surface-raised); text-align: left; }
+  .material:hover { border-color: var(--border); }
+  .material[aria-pressed="true"] { border-color: var(--accent); }
+  .material .caption { position: absolute; left: 4px; right: 4px; bottom: 4px; font-size: 11px; background: #000b; border-radius: 6px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .material .check { position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); display: none; align-items: center; justify-content: center; font-size: 12px; }
+  .material[aria-pressed="true"] .check { display: flex; }
+  .upload-zone { display: flex; align-items: center; justify-content: center; min-height: 72px; border: 1px dashed var(--text-muted); border-radius: 10px; color: var(--text-muted); cursor: pointer; }
+  .upload-zone:hover { color: var(--text); border-color: var(--text); }
+  .category-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .category-chip { padding: 3px 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-muted); font-size: 12px; }
+  .category-chip:hover { color: var(--text); }
+  .category-chip.active { border-color: var(--accent); color: var(--accent); background: #7c8cff1a; }
+  .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 12px; }
+  .style-card { text-align: left; border-radius: 12px; border: 2px solid transparent; padding: 6px; background: var(--surface-raised); display: flex; flex-direction: column; gap: 4px; }
+  .style-card:hover { background: var(--surface-hover); }
+  .style-card[aria-pressed="true"] { border-color: #c58bff; }
+  .style-preview { border-radius: 8px; overflow: hidden; }
+  .style-card b { font-size: 13px; }
+  .style-card small { color: var(--text-muted); font-size: 11px; }
+  .style-warning { font-size: 11px; color: var(--warning); }
+  .recipe-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .recipe-card { text-align: left; border-radius: 12px; border: 2px solid transparent; padding: 12px 14px; background: var(--surface-raised); display: flex; flex-direction: column; gap: 4px; }
+  .recipe-card:hover { background: var(--surface-hover); }
+  .recipe-card[aria-pressed="true"] { border-color: var(--accent); }
+  .recipe-card b { font-size: 14px; }
+  .recipe-card small { color: var(--text-muted); font-size: 12px; }
+  .recipe-card .recipe-meta { font-size: 11px; color: var(--accent); }
+
+  .toast { position: fixed; left: 50%; bottom: 36px; transform: translateX(-50%); z-index: 80; background: var(--success); color: #04120b; font-weight: 600; padding: 10px 18px; border-radius: 999px; box-shadow: var(--shadow); max-width: 90vw; }
+  .toast.warning { background: var(--warning); }
+  @media (max-width: 900px) { .editor { grid-template-columns: 1fr; } .working-panel { display: none; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <h1 class="page-title">资产板（演示背景）</h1>
+  <p class="page-note">点任意卡片上的「✨ 让 AI 改」打开改图弹框；不同类型、不同步骤的资产，弹框里的方案不同。</p>
+  <div class="asset-grid" id="assetGrid"></div>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <section class="editor" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+    <header class="editor-header">
+      <div>
+        <div class="editor-title" id="editorTitle"></div>
+        <div class="editor-subtitle" id="editorSubtitle"></div>
+      </div>
+      <span class="spacer"></span>
+      <button class="backfill-button" id="backfillButton" disabled>回填为新候选</button>
+      <button class="icon-button" id="closeButton" aria-label="关闭">✕</button>
+    </header>
+    <aside class="working-panel">
+      <div class="panel-label">当前图 · 从这里开始改</div>
+      <div class="working-image" id="workingImage"></div>
+      <div class="working-caption"><span id="workingCaption"></span><button class="link-button" id="resetWorking" hidden>回到原图</button></div>
+      <div class="panel-label">保持不变的设定</div>
+      <div class="lock-list" id="lockList"></div>
+    </aside>
+    <div class="stream" id="stream" aria-live="polite"></div>
+    <footer class="prompt-bar" id="promptBar">
+      <div class="library-panel" id="libraryPanel" hidden></div>
+      <div class="toolbar-row" id="toolbarRow"></div>
+      <div class="input-row">
+        <div class="reference-chips" id="referenceChips"></div>
+        <textarea id="promptInput" rows="2" placeholder="描述要怎么改，或从上面选素材、风格、方案（Enter 生成，Shift+Enter 换行）"></textarea>
+        <button class="generate-button" id="generateButton"></button>
+      </div>
+    </footer>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* ============================================================================================
+   Drawing: every image is an SVG built from a small options object, so variations are cheap
+   ============================================================================================ */
+let gradientCounter = 0
+const nextGradientId = () => `gradient${++gradientCounter}`
+const timeOfDayPalettes = {
+  day: { top: '#bfe0ff', bottom: '#f3ecdc', ground: '#c9b58a', sun: '#fff6d8' },
+  dusk: { top: '#ff9f7a', bottom: '#6d4a82', ground: '#7a5a58', sun: '#ffd9a0' },
+  night: { top: '#12183a', bottom: '#3b3f78', ground: '#2c2f4a', sun: '#e8eeff' },
+  studio: { top: '#ffffff', bottom: '#f1f2f5', ground: '#dcdfe4', sun: '#ffffff' },
+}
+const timeOfDayLabels = { day: '白天', dusk: '黄昏', night: '夜晚' }
+
+const robotEyes = {
+  smile: '<path d="M124 146q8-11 16 0M160 146q8-11 16 0" stroke="#7fe3e0" stroke-width="4.5" fill="none" stroke-linecap="round"/>',
+  surprised: '<circle cx="132" cy="146" r="7" fill="#7fe3e0"/><circle cx="168" cy="146" r="7" fill="#7fe3e0"/>',
+  worried: '<path d="M123 140l17 8M177 140l-17 8" stroke="#7fe3e0" stroke-width="4.5" stroke-linecap="round"/>',
+  sleepy: '<path d="M123 148h18M159 148h18" stroke="#4a9a98" stroke-width="4.5" stroke-linecap="round"/>',
+}
+const outfitLabels = { none: '原造型', scarf: '红围巾', helmet: '工程帽', both: '围巾 + 工程帽' }
+
+function drawRobot(options) {
+  const { hue = 75, expression = 'smile', outfit = 'none', time = 'day', seed = 1 } = options
+  const palette = timeOfDayPalettes[time] ?? timeOfDayPalettes.day
+  const gradientId = nextGradientId()
+  const lean = ((seed * 37) % 9) - 4
+  const body = `hsl(${hue} 32% 42%)`
+  const bodyDark = `hsl(${hue} 34% 28%)`
+  const trim = `hsl(${hue} 14% 80%)`
+  const scarf = outfit === 'scarf' || outfit === 'both'
+    ? '<path d="M104 196q46 16 92 0v16q-46 16-92 0z" fill="#d9534f"/><rect x="176" y="204" width="14" height="34" rx="5" fill="#c0443f"/>' : ''
+  const helmet = outfit === 'helmet' || outfit === 'both'
+    ? '<path d="M100 126q50-58 100 0z" fill="#e0a030"/><rect x="96" y="122" width="108" height="9" rx="4" fill="#c98a1c"/>' : ''
+  return `<svg viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${palette.top}"/><stop offset="1" stop-color="${palette.bottom}"/></linearGradient></defs>
+    <rect width="300" height="400" fill="url(#${gradientId})"/>
+    <ellipse cx="150" cy="372" rx="98" ry="12" fill="#000" opacity=".2"/>
+    <rect x="86" y="318" width="128" height="54" rx="24" fill="#3a3c39"/>
+    <circle cx="112" cy="345" r="13" fill="#555851"/><circle cx="150" cy="345" r="13" fill="#555851"/><circle cx="188" cy="345" r="13" fill="#555851"/>
+    <rect x="100" y="196" width="100" height="130" rx="18" fill="${body}"/>
+    <rect x="100" y="296" width="100" height="14" fill="${bodyDark}"/>
+    <circle cx="150" cy="256" r="24" fill="${trim}" stroke="${bodyDark}" stroke-width="4"/><circle cx="150" cy="256" r="12" fill="${bodyDark}" opacity=".5"/>
+    <rect x="66" y="208" width="24" height="100" rx="12" fill="${trim}" transform="rotate(${lean} 78 208)"/>
+    <rect x="210" y="208" width="24" height="100" rx="12" fill="${trim}" transform="rotate(${-lean} 222 208)"/>
+    <line x1="150" y1="108" x2="${150 + lean * 2}" y2="76" stroke="${bodyDark}" stroke-width="5" stroke-linecap="round"/><circle cx="${150 + lean * 2}" cy="72" r="7" fill="#e8744a"/>
+    <rect x="104" y="108" width="92" height="84" rx="20" fill="${body}"/>
+    <rect x="114" y="122" width="72" height="50" rx="12" fill="#0e1a1d"/>${robotEyes[expression] ?? robotEyes.smile}
+    ${scarf}${helmet}
+  </svg>`
+}
+
+function drawPanel(options) {
+  const { state = 'unfolded', view = 'front', time = 'day', hue = 215 } = options
+  const palette = timeOfDayPalettes[time] ?? timeOfDayPalettes.day
+  const gradientId = nextGradientId()
+  const cell = `hsl(${hue} 62% ${state === 'glowing' ? 46 : 26}%)`
+  const grid = []
+  for (let index = 1; index < 4; index++) grid.push(`<line x1="${70 + index * 40}" y1="${112 - index * 3}" x2="${90 + index * 40}" y2="${242 - index * 8}" stroke="#9fb4e8" stroke-width="1.5" opacity=".55"/>`)
+  for (let index = 1; index < 3; index++) grid.push(`<line x1="${70 + index * 7}" y1="${120 + index * 40}" x2="${230 + index * 6}" y2="${100 + index * 36}" stroke="#9fb4e8" stroke-width="1.5" opacity=".55"/>`)
+  let shape
+  if (view === 'side') {
+    shape = `<polygon points="128,104 168,92 172,236 124,244" fill="${cell}" stroke="#cfd7ee" stroke-width="4"/><rect x="168" y="96" width="14" height="140" rx="5" fill="#9aa3b8"/><line x1="146" y1="244" x2="140" y2="284" stroke="#8e96a8" stroke-width="7"/><line x1="166" y1="238" x2="178" y2="284" stroke="#8e96a8" stroke-width="7"/>`
+  } else if (view === 'back') {
+    shape = `<polygon points="70,120 230,100 250,210 90,240" fill="#7d8494" stroke="#cfd7ee" stroke-width="4"/><rect x="146" y="138" width="40" height="52" rx="6" fill="#5d6474"/><line x1="160" y1="240" x2="150" y2="282" stroke="#8e96a8" stroke-width="7"/>`
+  } else if (state === 'folded') {
+    shape = `<polygon points="120,120 180,112 192,214 132,226" fill="${cell}" stroke="#cfd7ee" stroke-width="4"/><line x1="156" y1="226" x2="150" y2="282" stroke="#8e96a8" stroke-width="7"/>`
+  } else {
+    const crack = state === 'cracked' ? '<polyline points="150,130 168,168 146,186 176,226" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/>' : ''
+    const glow = state === 'glowing' ? '<ellipse cx="160" cy="170" rx="120" ry="84" fill="#9fc2ff" opacity=".22"/>' : ''
+    shape = `${glow}<polygon points="70,120 230,100 250,210 90,240" fill="${cell}" stroke="#cfd7ee" stroke-width="4"/>${grid.join('')}${crack}<line x1="160" y1="240" x2="150" y2="282" stroke="#8e96a8" stroke-width="7"/><line x1="122" y1="236" x2="96" y2="282" stroke="#8e96a8" stroke-width="7"/>`
+  }
+  return `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${palette.top}"/><stop offset="1" stop-color="${palette.bottom}"/></linearGradient></defs>
+    <rect width="300" height="300" fill="url(#${gradientId})"/>
+    <ellipse cx="150" cy="286" rx="${view === 'side' ? 40 : 90}" ry="8" fill="#000" opacity=".16"/>${shape}
+  </svg>`
+}
+
+function drawScene(options) {
+  const { time = 'day', sun = 'left', camera = 'main', seed = 1, withRobot = false, robotHue = 75 } = options
+  const palette = timeOfDayPalettes[time] ?? timeOfDayPalettes.day
+  const gradientId = nextGradientId()
+  const sunX = sun === 'left' ? 96 : 384
+  const flip = camera === 'reverse' ? 'translate(480 0) scale(-1 1)' : camera === 'side' ? 'translate(-70 0) scale(1.28)' : ''
+  const debris = [0, 1, 2, 3, 4, 5].map((index) => `<circle cx="${60 + ((seed * 53 + index * 71) % 360)}" cy="${222 + ((seed * 29 + index * 17) % 30)}" r="${2 + (index % 3)}" fill="#00000030"/>`).join('')
+  const robot = withRobot
+    ? `<g transform="translate(332 176) scale(.2)"><rect x="86" y="318" width="128" height="54" rx="24" fill="#3a3c39"/><rect x="100" y="196" width="100" height="130" rx="18" fill="hsl(${robotHue} 32% 42%)"/><rect x="104" y="108" width="92" height="84" rx="20" fill="hsl(${robotHue} 32% 42%)"/><rect x="114" y="122" width="72" height="50" rx="12" fill="#0e1a1d"/>${robotEyes.smile}</g>` : ''
+  return `<svg viewBox="0 0 480 270" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${palette.top}"/><stop offset="1" stop-color="${palette.bottom}"/></linearGradient><clipPath id="${gradientId}clip"><rect width="480" height="270"/></clipPath></defs>
+    <g clip-path="url(#${gradientId}clip)"><g transform="${flip}">
+      <rect width="480" height="270" fill="url(#${gradientId})"/>
+      <circle cx="${sunX}" cy="62" r="${time === 'night' ? 18 : 28}" fill="${palette.sun}" opacity=".95"/>
+      <path d="M0 168q70-46 140-10t140-14 200 16V270H0z" fill="${palette.ground}" opacity=".6"/>
+      <path d="M0 196q120-30 240 0t240-10V270H0z" fill="${palette.ground}"/>
+      ${debris}
+      <ellipse cx="250" cy="206" rx="70" ry="28" fill="#ebe8e0"/><ellipse cx="250" cy="198" rx="40" ry="14" fill="#c9d7e6"/>
+      <polygon points="190,200 160,164 206,186" fill="#cfcac0"/><rect x="288" y="150" width="3" height="52" fill="#555"/><circle cx="289" cy="148" r="${time === 'night' ? 9 : 5}" fill="#ffd27a" opacity="${time === 'night' ? 1 : .7}"/>
+      ${robot}
+    </g></g>
+  </svg>`
+}
+
+const drawers = { robot: drawRobot, panel: drawPanel, scene: drawScene }
+
+/* ============================================================================================
+   Assets: type, pipeline step and the recipes that fit that step.
+   `patch(index, options, characterOptions)` returns the options of result `index`; a recipe is
+   applied only while its default prompt is unchanged, otherwise typed keywords are read instead.
+   ============================================================================================ */
+const expressionCycle = ['smile', 'surprised', 'worried', 'sleepy']
+const outfitCycle = ['scarf', 'helmet', 'both', 'none']
+const panelStateCycle = ['folded', 'unfolded', 'cracked', 'glowing']
+const panelStateLabels = { folded: '折叠', unfolded: '展开', cracked: '裂痕', glowing: '发光' }
+const timeCycle = ['day', 'dusk', 'night']
+
+const assets = [
+  {
+    id: 'robot', name: '嗡', kindLabel: '角色', step: 'C1', stepName: '定妆图', drawer: 'robot', aspect: '3 / 4',
+    baseOptions: { hue: 75, expression: 'smile', outfit: 'none', time: 'day', seed: 1 },
+    locks: ['橄榄绿金属外壳', '屏幕脸，青色眼睛', '履带底盘', '胸口圆形表盘'],
+    recipes: [
+      { id: 'expression', label: '换表情', prompt: '只换表情，脸型、配色和标志物保持不变', count: 4, patch: (index, options) => ({ ...options, expression: expressionCycle[index % 4], seed: index + 3 }), labelOf: (index) => ['微笑', '惊讶', '担心', '犯困'][index % 4] },
+      { id: 'outfit', label: '换造型', prompt: '换一套造型，身体结构和配色不变', count: 4, patch: (index, options) => ({ ...options, outfit: outfitCycle[index % 4], seed: index + 5 }), labelOf: (index) => outfitLabels[outfitCycle[index % 4]] },
+      { id: 'fixLocks', label: '按锁修正', prompt: '按下面的设定修正：外壳保持橄榄绿，眼睛保持青色', count: 2, patch: (index, options) => ({ ...options, hue: 75, expression: 'smile', seed: index + 11 }) },
+    ],
+  },
+  {
+    id: 'panel', name: '光伏板', kindLabel: '道具', step: 'P1', stepName: '定稿图', drawer: 'panel', aspect: '1 / 1',
+    baseOptions: { hue: 215, state: 'unfolded', view: 'front', time: 'day', seed: 1 },
+    locks: ['深蓝电池片，银色边框', '四格网线', '可折叠支架'],
+    recipes: [
+      { id: 'state', label: '换状态', prompt: '换成不同的使用状态，材质和比例不变', count: 4, patch: (index, options) => ({ ...options, state: panelStateCycle[index % 4], seed: index + 2 }), labelOf: (index) => panelStateLabels[panelStateCycle[index % 4]] },
+      { id: 'turnaround', label: '白底三视图', prompt: '白底，同一光照，正面、侧面、背面各一张，比例一致', count: 3, patch: (index, options) => ({ ...options, view: ['front', 'side', 'back'][index], time: 'studio' }), labelOf: (index) => ['正面', '侧面', '背面'][index] },
+      { id: 'fixLocks', label: '按锁修正', prompt: '按下面的设定修正：深蓝电池片，银色边框', count: 2, patch: (index, options) => ({ ...options, hue: 215, state: 'unfolded', seed: index + 7 }) },
+    ],
+  },
+  {
+    id: 'crash', name: '坠落点', kindLabel: '场景', step: 'S1', stepName: '主空镜', drawer: 'scene', aspect: '16 / 9',
+    baseOptions: { time: 'day', sun: 'left', camera: 'main', seed: 1 },
+    locks: ['左侧低角度光源', '船体朝向右前方', '地面散落残骸'],
+    recipes: [
+      { id: 'time', label: '换时段', prompt: '换成不同的时段，机位和构图不变', count: 3, patch: (index, options) => ({ ...options, time: timeCycle[index] }), labelOf: (index) => timeOfDayLabels[timeCycle[index]] },
+      { id: 'sun', label: '换光向', prompt: '换光的方向，其他不变', count: 2, patch: (index, options) => ({ ...options, sun: ['left', 'right'][index] }), labelOf: (index) => ['光从左', '光从右'][index] },
+      { id: 'fixLocks', label: '按锁修正', prompt: '按下面的设定修正：低角度光源在左侧，不出现太阳圆盘', count: 2, patch: (index, options) => ({ ...options, sun: 'left', seed: index + 9 }) },
+    ],
+  },
+  {
+    id: 'trial', name: '坠落点', kindLabel: '场景', step: 'T1', stepName: '场景试拍', drawer: 'scene', aspect: '16 / 9',
+    baseOptions: { time: 'day', sun: 'left', camera: 'main', seed: 2, withRobot: true },
+    locks: ['角色相对场景的大小', '光向与主空镜一致'],
+    recipes: [
+      { id: 'placeCharacter', label: '角色入景', prompt: '把角色放进场景，人物大小符合中景，光向跟场景一致', count: 4, needsCharacter: true, patch: (index, options, characterOptions) => ({ ...options, withRobot: true, robotHue: characterOptions?.hue ?? 75, seed: index + 4 }) },
+      { id: 'time', label: '换时段', prompt: '换成不同的时段，角色和机位不变', count: 3, patch: (index, options) => ({ ...options, time: timeCycle[index] }), labelOf: (index) => timeOfDayLabels[timeCycle[index]] },
+    ],
+  },
+]
+const assetOf = (assetId) => assets.find((asset) => asset.id === assetId)
+
+/* ============================================================================================
+   Styles: previewed here with a CSS filter; the real app appends the style's keywords to the prompt
+   ============================================================================================ */
+const styleCategories = [
+  { id: 'illustration', name: '插画 / 手绘' }, { id: 'cartoon', name: '卡通 / 角色' }, { id: 'material', name: '立体 / 材质' },
+  { id: 'digital', name: '数字 / 未来' }, { id: 'mood', name: '氛围 / 潮流' }, { id: 'photo', name: '摄影 / 影像' },
+]
+const styles = [
+  { id: 'watercolor', category: 'illustration', name: '水彩', english: 'Watercolor', filter: 'saturate(.8) brightness(1.08) blur(.5px)' },
+  { id: 'ink', category: 'illustration', name: '水墨', english: 'Ink wash', filter: 'grayscale(1) contrast(1.05) brightness(.95)', isUnstableInVideo: true },
+  { id: 'oil', category: 'illustration', name: '油画厚涂', english: 'Oil painting', filter: 'saturate(1.35) contrast(1.1)' },
+  { id: 'cel', category: 'cartoon', name: '日系赛璐璐', english: 'Anime cel', filter: 'saturate(1.5) contrast(1.15)' },
+  { id: 'comic', category: 'cartoon', name: '美漫', english: 'American comic', filter: 'saturate(1.6) contrast(1.4)' },
+  { id: 'chibi', category: 'cartoon', name: 'Q 版', english: 'Chibi', filter: 'saturate(1.5) brightness(1.1)' },
+  { id: 'clay', category: 'material', name: '黏土定格', english: 'Clay stop-motion', filter: 'sepia(.25) saturate(1.1) contrast(.95) blur(.3px)' },
+  { id: 'felt', category: 'material', name: '羊毛毡', english: 'Felt', filter: 'saturate(.85) blur(.8px)', isUnstableInVideo: true },
+  { id: 'paperCut', category: 'material', name: '纸雕', english: 'Paper cut', filter: 'contrast(1.2) saturate(1.1) brightness(1.04)' },
+  { id: 'pixel', category: 'digital', name: '像素风', english: 'Pixel art', filter: 'contrast(1.4) saturate(1.1)', isUnstableInVideo: true },
+  { id: 'cyberpunk', category: 'digital', name: '赛博朋克', english: 'Cyberpunk', filter: 'hue-rotate(250deg) saturate(1.8) contrast(1.2)' },
+  { id: 'synthwave', category: 'digital', name: '合成波', english: 'Synthwave', filter: 'hue-rotate(290deg) saturate(1.7)' },
+  { id: 'storybook', category: 'mood', name: '童话奇幻', english: 'Storybook fantasy', filter: 'saturate(.9) brightness(1.1) sepia(.15)' },
+  { id: 'steampunk', category: 'mood', name: '蒸汽朋克', english: 'Steampunk', filter: 'sepia(.6) saturate(1.2) contrast(1.1)' },
+  { id: 'dreamcore', category: 'mood', name: '梦核', english: 'Dreamcore', filter: 'brightness(1.2) saturate(.7) blur(1px)', isUnstableInVideo: true },
+  { id: 'cinematic', category: 'photo', name: '电影剧照', english: 'Cinematic still', filter: 'contrast(1.15) saturate(1.1) hue-rotate(-6deg)' },
+  { id: 'film35', category: 'photo', name: '35mm 胶片', english: '35mm film', filter: 'sepia(.2) saturate(.9) contrast(1.05)' },
+  { id: 'polaroid', category: 'photo', name: '拍立得', english: 'Polaroid', filter: 'sepia(.15) saturate(.8) brightness(1.12)' },
+]
+const styleOf = (styleId) => styles.find((style) => style.id === styleId)
+
+/* Keywords typed by hand; used when the prompt was edited and no recipe applies */
+const keywordRules = [
+  [/夜|冷/, { time: 'night' }], [/黄昏|暖|夕阳/, { time: 'dusk' }], [/白天|日光/, { time: 'day' }],
+  [/开心|笑/, { expression: 'smile' }], [/惊/, { expression: 'surprised' }], [/担心|愁/, { expression: 'worried' }], [/困|睡/, { expression: 'sleepy' }],
+  [/围巾/, { outfit: 'scarf' }], [/头盔|帽/, { outfit: 'helmet' }], [/红/, { hue: 8 }], [/蓝/, { hue: 210 }], [/紫/, { hue: 280 }],
+  [/折叠|收起/, { state: 'folded' }], [/裂/, { state: 'cracked' }], [/发光|亮/, { state: 'glowing' }],
+]
+const hueJitter = [0, 14, -12, 24]
+function optionsFromText(text, options, index) {
+  let result = { ...options, seed: (options.seed ?? 1) + index * 5 + 17 }
+  const mentionsAccessory = /围巾|头盔|帽/.test(text)
+  for (const [pattern, patch] of keywordRules) {
+    if (!pattern.test(text)) continue
+    if (mentionsAccessory && 'hue' in patch) continue // "红围巾" colours the scarf, not the body
+    result = { ...result, ...patch }
+  }
+  if (result.hue !== undefined) result.hue += hueJitter[index % hueJitter.length]
+  if (result.expression && !/开心|笑|惊|担心|愁|困|睡/.test(text)) result.expression = expressionCycle[(index + 1) % 4]
+  return result
+}
+
+/* ============================================================================================
+   State
+   ============================================================================================ */
+const PRICE_PER_IMAGE = 0.2
+const GENERATION_DELAY_MS = 1200
+const MAX_REFERENCES = 4
+const candidateLists = new Map(assets.map((asset) => [asset.id, [
+  { options: { ...asset.baseOptions, seed: 7 }, label: '候选 1' },
+  { options: { ...asset.baseOptions }, label: '候选 2', isPicked: true },
+  { options: { ...asset.baseOptions, seed: 12 }, label: '候选 3' },
+]]))
+const sessions = new Map()
+let activeAsset = null
+let activeSession = null
+
+function sessionFor(asset) {
+  if (!sessions.has(asset.id)) {
+    const picked = candidateLists.get(asset.id).find((candidate) => candidate.isPicked)
+    sessions.set(asset.id, {
+      rounds: [], selectedKey: null, activeRecipeId: null, styleId: null, promptText: '', isGenerating: false,
+      references: [], uploads: [], panelTab: null, styleCategoryId: 'all',
+      original: { options: picked.options, label: `原图 · ${picked.label}` },
+      working: { options: picked.options, label: `原图 · ${picked.label}`, isOriginal: true },
+    })
+  }
+  return sessions.get(asset.id)
+}
+
+/* ============================================================================================
+   Rendering
+   ============================================================================================ */
+const elements = Object.fromEntries(['assetGrid', 'overlay', 'editorTitle', 'editorSubtitle', 'backfillButton', 'closeButton', 'workingImage', 'workingCaption', 'resetWorking', 'lockList', 'stream', 'libraryPanel', 'toolbarRow', 'referenceChips', 'promptInput', 'generateButton', 'toast'].map((id) => [id, document.getElementById(id)]))
+const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character])
+const artFor = (asset, options) => drawers[asset.drawer](options)
+const recipeOf = (asset, recipeId) => asset.recipes.find((recipe) => recipe.id === recipeId)
+const filterStyle = (styleId) => (styleId ? ` style="filter:${styleOf(styleId).filter}"` : '')
+
+/** A reference/material as markup: uploads are real images, the rest are drawn from their asset */
+function materialArt(material) {
+  return material.dataUrl
+    ? `<img src="${material.dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">`
+    : artFor(assetOf(material.assetId), material.options)
+}
+const materialAspect = (material) => (material.dataUrl ? '1 / 1' : assetOf(material.assetId).aspect)
+
+function renderCards() {
+  elements.assetGrid.innerHTML = assets.map((asset) => {
+    const candidates = candidateLists.get(asset.id)
+    const picked = candidates.find((candidate) => candidate.isPicked)
+    return `<article class="asset-card">
+      <header><h2>${escapeHtml(asset.name)}</h2><span class="step">${asset.step} ${escapeHtml(asset.stepName)}</span><span class="kind">${asset.kindLabel}</span></header>
+      <div class="asset-preview" style="aspect-ratio:${asset.aspect}">${artFor(asset, picked.options)}</div>
+      <div class="candidate-strip" aria-label="候选">${candidates.map((candidate) =>
+        `<div class="candidate ${candidate.isPicked ? 'picked' : ''} ${candidate.isNew ? 'is-new' : ''}" style="aspect-ratio:${asset.aspect}" title="${escapeHtml(candidate.label)}">${artFor(asset, candidate.options)}<span class="tag">${candidate.isNew ? '新' : candidate.isPicked ? '选用' : ''}</span></div>`).join('')}</div>
+      <button class="primary-button" data-action="open" data-asset="${asset.id}">✨ 让 AI 改</button>
+    </article>`
+  }).join('')
+}
+
+function renderEditor() {
+  const asset = activeAsset
+  const session = activeSession
+  elements.editorTitle.textContent = `✨ ${asset.name} · ${asset.step} ${asset.stepName}`
+  elements.editorSubtitle.textContent = `${asset.kindLabel} · 改的是副本，回填后成为新候选，不会覆盖当前选用`
+  elements.workingImage.style.aspectRatio = asset.aspect
+  elements.workingImage.innerHTML = artFor(asset, session.working.options)
+  elements.workingCaption.textContent = session.working.label
+  elements.resetWorking.hidden = session.working.isOriginal
+  elements.lockList.innerHTML = asset.locks.map((lock) => `<div class="lock-chip">🔒 ${escapeHtml(lock)}</div>`).join('')
+  renderStream()
+  renderPromptBar()
+  renderPanel()
+  const selection = selectedResult()
+  elements.backfillButton.disabled = !selection
+  elements.backfillButton.textContent = selection ? `回填 #${selection.number} 为新候选` : '回填为新候选'
+}
+
+const resultKey = (roundId, index) => `${roundId}-${index}`
+function selectedResult() {
+  const session = activeSession
+  if (!session.selectedKey) return null
+  for (const round of session.rounds) {
+    for (const [index, result] of round.results.entries()) {
+      if (resultKey(round.id, index) === session.selectedKey) return { ...result, round, number: `${round.id}.${index + 1}` }
+    }
+  }
+  return null
+}
+
+function renderStream() {
+  const asset = activeAsset
+  const session = activeSession
+  if (!session.rounds.length) {
+    const count = recipeOf(asset, session.activeRecipeId)?.count ?? 4
+    elements.stream.innerHTML = `<div class="empty-state"><strong>还没有结果</strong>在下面选方案、风格或素材，或直接描述要怎么改；一次生成 ${count} 张，挑一张回填。</div>`
+    return
+  }
+  elements.stream.innerHTML = session.rounds.map((round) => {
+    const columns = round.results.length === 6 ? 3 : round.results.length
+    const referenceBadges = round.references.slice(0, 2).map((material) => `<span class="tile-reference" style="aspect-ratio:${materialAspect(material)}">${materialArt(material)}</span>`).join('')
+    const tiles = round.results.map((result, index) => {
+      const key = resultKey(round.id, index)
+      if (round.isPending) return `<div class="tile loading" style="aspect-ratio:${asset.aspect}"><div class="skeleton"></div><span class="skeleton-text">生成中…</span></div>`
+      return `<div class="tile ${session.selectedKey === key ? 'selected' : ''}" style="aspect-ratio:${asset.aspect}" tabindex="0" role="button" aria-pressed="${session.selectedKey === key}" data-action="select" data-key="${key}">
+        <div class="tile-art"${filterStyle(round.styleId)}>${artFor(asset, result.options)}</div>
+        ${result.label ? `<span class="tile-label">${escapeHtml(result.label)}</span>` : ''}
+        <span class="tile-check">✓</span>
+        ${referenceBadges ? `<span class="tile-references">${referenceBadges}</span>` : ''}
+        <div class="tile-actions"><button class="tile-action" data-action="continue" data-key="${key}">继续改这张</button></div>
+      </div>`
+    }).join('')
+    const referenceNote = round.references.length ? ` + 参考 ${round.references.length} 张` : ''
+    return `<section>
+      <div class="round-head"><span class="round-index">第 ${round.id} 轮</span><span class="round-tag">${escapeHtml(round.recipeLabel)}</span>
+        ${round.styleId ? `<span class="round-tag style">${escapeHtml(styleOf(round.styleId).name)}</span>` : ''}
+        <span class="round-prompt">${escapeHtml(round.prompt)}</span>
+        <span class="round-meta">基于 ${escapeHtml(round.baseLabel)}${referenceNote} · ${round.results.length} 张 · ¥${(round.results.length * PRICE_PER_IMAGE).toFixed(2)}</span></div>
+      <div class="result-grid" style="grid-template-columns:repeat(${columns}, minmax(0, 1fr))">${tiles}</div>
+    </section>`
+  }).join('')
+}
+
+const needsCharacter = () => !!recipeOf(activeAsset, activeSession.activeRecipeId)?.needsCharacter
+const hasCharacterReference = () => activeSession.references.some((material) => material.assetId === 'robot')
+
+function renderPromptBar() {
+  const asset = activeAsset
+  const session = activeSession
+  const recipe = recipeOf(asset, session.activeRecipeId)
+  const style = styleOf(session.styleId)
+  const tab = (tabId, icon, name, value) =>
+    `<button class="tool-button ${session.panelTab === tabId ? 'open' : ''}" data-action="open-panel" data-tab="${tabId}" aria-expanded="${session.panelTab === tabId}">${icon} ${name}${value ? ` <span class="value">${escapeHtml(value)}</span>` : ''}</button>`
+  const mode = session.references.length ? '多图融合' : '图像编辑'
+  elements.toolbarRow.innerHTML =
+    tab('materials', '＋', '素材', session.references.length ? `${session.references.length} 张` : '') +
+    tab('styles', '🎨', '风格', style?.name) +
+    tab('recipes', '✨', '方案', recipe?.label) +
+    `<span class="spacer"></span><span class="mode-tag">${mode}</span>`
+
+  const referenceChips = session.references.map((material) =>
+    `<div class="reference-chip" style="aspect-ratio:${materialAspect(material)}" title="${escapeHtml(material.label)}">${materialArt(material)}<span class="role">参考</span><button class="remove" data-action="remove-reference" data-id="${material.id}" aria-label="移除参考图">✕</button></div>`).join('')
+  elements.referenceChips.innerHTML =
+    `<div class="reference-chip" style="aspect-ratio:${asset.aspect}" title="${escapeHtml(session.working.label)}">${artFor(asset, session.working.options)}<span class="role">改这张</span></div>${referenceChips}` +
+    (style ? `<span class="style-chip">${escapeHtml(style.name)}<button class="icon-button" style="width:22px;height:22px;font-size:11px" data-action="clear-style" aria-label="取消风格">✕</button></span>` : '')
+
+  if (document.activeElement !== elements.promptInput) elements.promptInput.value = session.promptText
+  const count = recipe?.count ?? 4
+  const missingCharacter = needsCharacter() && !hasCharacterReference()
+  elements.generateButton.disabled = session.isGenerating
+  elements.generateButton.classList.toggle('needs-input', missingCharacter && !session.isGenerating)
+  elements.generateButton.innerHTML = missingCharacter
+    ? '先选角色图<small>在「素材」里选</small>'
+    : session.isGenerating ? '生成中…' : `生成 ${count} 张<small>¥${(count * PRICE_PER_IMAGE).toFixed(2)}</small>`
+}
+
+function renderPanel() {
+  const session = activeSession
+  const asset = activeAsset
+  const panel = elements.libraryPanel
+  panel.hidden = !session.panelTab
+  if (!session.panelTab) return
+  const tabs = [['materials', '素材'], ['styles', '风格'], ['recipes', '方案']]
+  const header = `<div class="panel-tabs">${tabs.map(([id, name]) => `<button class="panel-tab ${session.panelTab === id ? 'active' : ''}" data-action="open-panel" data-tab="${id}" data-keep-open>${name}</button>`).join('')}<span class="spacer"></span><button class="icon-button" data-action="close-panel" aria-label="关闭面板">✕</button></div>`
+  let body = ''
+  if (session.panelTab === 'materials') body = materialsBody()
+  if (session.panelTab === 'styles') body = stylesBody()
+  if (session.panelTab === 'recipes') body = recipesBody()
+  const scrollTop = panel.querySelector('.panel-body')?.scrollTop ?? 0
+  panel.innerHTML = `${header}<div class="panel-body">${body}</div>`
+  panel.querySelector('.panel-body').scrollTop = scrollTop
+}
+
+function materialButton(material) {
+  const isPressed = activeSession.references.some((reference) => reference.id === material.id)
+  return `<button class="material" aria-pressed="${isPressed}" data-action="toggle-reference" data-id="${material.id}" title="${escapeHtml(material.label)}"><div class="material-art">${materialArt(material)}</div><span class="check">✓</span><span class="caption">${escapeHtml(material.label)}</span></button>`
+}
+/** Every material the panel can offer, by id, so a click can find it again */
+function materialCatalog() {
+  const session = activeSession
+  const boardMaterials = [
+    { id: 'original', label: session.original.label, assetId: activeAsset.id, options: session.original.options },
+    ...session.rounds.flatMap((round) => round.isPending ? [] : round.results.map((result, index) => ({ id: `result-${round.id}-${index}`, label: `#${round.id}.${index + 1}${result.label ? ' ' + result.label : ''}`, assetId: activeAsset.id, options: result.options }))),
+  ]
+  const libraryMaterials = assets.map((asset) => {
+    const picked = candidateLists.get(asset.id).find((candidate) => candidate.isPicked)
+    return { id: `asset-${asset.id}`, label: `${asset.name} · ${asset.step}`, assetId: asset.id, options: picked.options }
+  })
+  return { boardMaterials, libraryMaterials, uploadMaterials: session.uploads }
+}
+function materialsBody() {
+  const { boardMaterials, libraryMaterials, uploadMaterials } = materialCatalog()
+  const hint = needsCharacter() && !hasCharacterReference() ? '<p class="panel-hint" style="color:var(--accent)">「角色入景」需要一张角色图：在资产库里选「嗡 · C1」。</p>' : `<p class="panel-hint">选中的图作为参考图一起发给模型（最多 ${MAX_REFERENCES} 张）；当前图不用选，已经在里面了。</p>`
+  return `${hint}
+    <section><h3>本板图片</h3><div class="material-grid">${boardMaterials.map(materialButton).join('')}</div></section>
+    <section><h3>资产库</h3><div class="material-grid">${libraryMaterials.map(materialButton).join('')}</div></section>
+    <section><h3>上传</h3><div class="material-grid">${uploadMaterials.map(materialButton).join('')}<label class="upload-zone" style="aspect-ratio:1 / 1; min-height:0">＋ 选择图片<input id="uploadInput" type="file" accept="image/*" multiple hidden></label></div></section>`
+}
+function stylesBody() {
+  const session = activeSession
+  const visible = styles.filter((style) => session.styleCategoryId === 'all' || style.category === session.styleCategoryId)
+  const chips = [{ id: 'all', name: '全部' }, ...styleCategories].map((category) => `<button class="category-chip ${session.styleCategoryId === category.id ? 'active' : ''}" data-action="style-category" data-id="${category.id}">${category.name}</button>`).join('')
+  const cards = visible.map((style) => `<button class="style-card" aria-pressed="${session.styleId === style.id}" data-action="toggle-style" data-style="${style.id}">
+      <div class="style-preview" style="aspect-ratio:${activeAsset.aspect}"><div style="width:100%;height:100%;filter:${style.filter}">${artFor(activeAsset, session.working.options)}</div></div>
+      <b>${escapeHtml(style.name)}</b><small>${escapeHtml(style.english)}</small>
+      ${style.isUnstableInVideo ? '<span class="style-warning">⚠ 图生视频易闪烁，先试拍</span>' : ''}</button>`).join('')
+  return `<p class="panel-hint">预览是用当前图套的滤镜；真实生成时会把风格关键词写进提示词。再点一次取消。</p><div class="category-row">${chips}</div><div class="style-grid">${cards}</div>`
+}
+function recipesBody() {
+  const session = activeSession
+  const cards = activeAsset.recipes.map((recipe) => `<button class="recipe-card" aria-pressed="${session.activeRecipeId === recipe.id}" data-action="recipe" data-recipe="${recipe.id}">
+      <b>${escapeHtml(recipe.label)}</b><small>${escapeHtml(recipe.prompt)}</small>
+      <span class="recipe-meta">${recipe.count} 张${recipe.needsCharacter ? ' · 需要一张角色图' : ''}</span></button>`).join('')
+  return `<p class="panel-hint">「${escapeHtml(activeAsset.name)} · ${activeAsset.step} ${escapeHtml(activeAsset.stepName)}」这一步适用的方案；选中只是预填提示词，可以继续改字。</p><div class="recipe-list">${cards}</div>`
+}
+
+/* ============================================================================================
+   Actions
+   ============================================================================================ */
+function openEditor(assetId) {
+  activeAsset = assetOf(assetId)
+  activeSession = sessionFor(activeAsset)
+  activeSession.panelTab = null
+  elements.overlay.hidden = false
+  document.body.style.overflow = 'hidden'
+  renderEditor()
+  elements.stream.scrollTop = elements.stream.scrollHeight
+  elements.promptInput.focus()
+}
+
+function closeEditor() {
+  const hasUnsentResults = activeSession?.rounds.length > 0 && !activeSession.hasBackfilled
+  if (hasUnsentResults && !confirm('还有没回填的结果，关闭后会保留在这个资产的弹框里，下次打开还在。确定关闭？')) return
+  elements.overlay.hidden = true
+  document.body.style.overflow = ''
+}
+
+function openPanel(tabId) {
+  const session = activeSession
+  session.panelTab = session.panelTab === tabId ? null : tabId
+  renderEditor()
+}
+
+function chooseRecipe(recipeId) {
+  const session = activeSession
+  const recipe = recipeOf(activeAsset, recipeId)
+  session.activeRecipeId = session.activeRecipeId === recipeId ? null : recipeId
+  session.promptText = session.activeRecipeId ? recipe.prompt : ''
+  elements.promptInput.value = session.promptText
+  session.panelTab = recipe.needsCharacter && !hasCharacterReference() && session.activeRecipeId ? 'materials' : null
+  renderEditor()
+  elements.promptInput.focus()
+}
+
+function toggleReference(materialId) {
+  const session = activeSession
+  const existing = session.references.findIndex((reference) => reference.id === materialId)
+  if (existing >= 0) session.references.splice(existing, 1)
+  else {
+    if (session.references.length >= MAX_REFERENCES) return showToast(`最多 ${MAX_REFERENCES} 张参考图`, true)
+    const { boardMaterials, libraryMaterials, uploadMaterials } = materialCatalog()
+    session.references.push([...boardMaterials, ...libraryMaterials, ...uploadMaterials].find((material) => material.id === materialId))
+  }
+  renderEditor()
+}
+
+function addUploads(files) {
+  const session = activeSession
+  for (const file of files) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const material = { id: `upload-${session.uploads.length + 1}`, label: file.name.replace(/\.\w+$/, ''), dataUrl: reader.result }
+      session.uploads.push(material)
+      if (session.references.length < MAX_REFERENCES) session.references.push(material)
+      if (activeSession === session) renderEditor()
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+function generate() {
+  const asset = activeAsset
+  const session = activeSession
+  if (session.isGenerating) return
+  const recipe = recipeOf(asset, session.activeRecipeId)
+  if (recipe?.needsCharacter && !hasCharacterReference()) {
+    session.panelTab = 'materials'
+    renderEditor()
+    return showToast('角色入景需要一张角色图：在「素材 → 资产库」里选「嗡 · C1」', true)
+  }
+  const text = elements.promptInput.value.trim()
+  const usesRecipe = recipe && text === recipe.prompt
+  const count = usesRecipe ? recipe.count : 4
+  const roundId = session.rounds.length + 1
+  const baseOptions = session.working.options
+  const characterOptions = session.references.find((material) => material.assetId === 'robot')?.options
+  const results = Array.from({ length: count }, (_, index) => {
+    if (usesRecipe) return { options: recipe.patch(index, baseOptions, characterOptions), label: recipe.labelOf?.(index) ?? '' }
+    return { options: optionsFromText(text, baseOptions, index), label: '' }
+  })
+  const round = {
+    id: roundId, recipeLabel: usesRecipe ? recipe.label : '按意见修改', styleId: session.styleId, references: [...session.references],
+    prompt: text || '（无描述，轻微变化）', baseLabel: session.working.label, results, isPending: true,
+  }
+  session.rounds.push(round)
+  session.isGenerating = true
+  session.panelTab = null
+  renderEditor()
+  elements.stream.scrollTop = elements.stream.scrollHeight
+  setTimeout(() => {
+    round.isPending = false
+    session.isGenerating = false
+    session.promptText = ''
+    session.activeRecipeId = null
+    elements.promptInput.value = ''
+    if (!elements.overlay.hidden && activeSession === session) {
+      renderEditor()
+      elements.stream.scrollTop = elements.stream.scrollHeight
+    }
+  }, GENERATION_DELAY_MS)
+}
+
+function findResult(key) {
+  for (const round of activeSession.rounds) {
+    for (const [index, result] of round.results.entries()) if (resultKey(round.id, index) === key) return { round, index, result }
+  }
+  return null
+}
+
+function continueFrom(key) {
+  const found = findResult(key)
+  if (!found) return
+  activeSession.working = { options: found.result.options, label: `#${found.round.id}.${found.index + 1}${found.result.label ? ' ' + found.result.label : ''}`, isOriginal: false }
+  activeSession.selectedKey = key
+  renderEditor()
+  elements.promptInput.focus()
+}
+
+function backfill() {
+  const selection = selectedResult()
+  if (!selection) return
+  const candidates = candidateLists.get(activeAsset.id)
+  candidates.push({ options: selection.options, label: `候选 ${candidates.length + 1}（来自灵感板）`, isNew: true })
+  activeSession.hasBackfilled = true
+  elements.overlay.hidden = true
+  document.body.style.overflow = ''
+  renderCards()
+  showToast(`已回填为 ${activeAsset.name} · ${activeAsset.step} 候选 ${candidates.length}（未选用，选用后才会改这一步）`)
+}
+
+let toastTimer
+function showToast(message, isWarning = false) {
+  elements.toast.textContent = message
+  elements.toast.classList.toggle('warning', isWarning)
+  elements.toast.hidden = false
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (elements.toast.hidden = true), 3400)
+}
+
+/* ============================================================================================
+   Events
+   ============================================================================================ */
+document.addEventListener('click', (event) => {
+  const target = event.target.closest('[data-action]')
+  const isInsidePanelArea = event.target.closest('#libraryPanel') || event.target.closest('[data-action="open-panel"]')
+  if (activeSession?.panelTab && !isInsidePanelArea && !elements.overlay.hidden) { activeSession.panelTab = null; renderEditor() }
+  if (!target) return
+  const { action } = target.dataset
+  if (action === 'open') openEditor(target.dataset.asset)
+  if (action === 'open-panel') openPanel(target.dataset.tab)
+  if (action === 'close-panel') { activeSession.panelTab = null; renderEditor() }
+  if (action === 'recipe') chooseRecipe(target.dataset.recipe)
+  if (action === 'toggle-reference') toggleReference(target.dataset.id)
+  if (action === 'remove-reference') toggleReference(target.dataset.id)
+  if (action === 'style-category') { activeSession.styleCategoryId = target.dataset.id; renderEditor() }
+  if (action === 'toggle-style') { activeSession.styleId = activeSession.styleId === target.dataset.style ? null : target.dataset.style; renderEditor() }
+  if (action === 'clear-style') { activeSession.styleId = null; renderEditor() }
+  if (action === 'continue') { event.stopPropagation(); continueFrom(target.dataset.key) }
+  if (action === 'select') {
+    activeSession.selectedKey = activeSession.selectedKey === target.dataset.key ? null : target.dataset.key
+    renderEditor()
+  }
+})
+document.addEventListener('change', (event) => {
+  if (event.target.id === 'uploadInput') addUploads(event.target.files)
+})
+document.addEventListener('keydown', (event) => {
+  if (elements.overlay.hidden) return
+  if (event.key === 'Escape') {
+    if (activeSession.panelTab) { activeSession.panelTab = null; renderEditor() } else closeEditor()
+  }
+  if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('.tile')) { event.preventDefault(); event.target.click() }
+})
+elements.promptInput.addEventListener('input', () => {
+  const session = activeSession
+  session.promptText = elements.promptInput.value
+  const recipe = recipeOf(activeAsset, session.activeRecipeId)
+  if (recipe && elements.promptInput.value.trim() !== recipe.prompt) { session.activeRecipeId = null; renderPromptBar() }
+})
+elements.promptInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); generate() }
+})
+elements.generateButton.addEventListener('click', generate)
+elements.backfillButton.addEventListener('click', backfill)
+elements.closeButton.addEventListener('click', closeEditor)
+elements.resetWorking.addEventListener('click', () => {
+  activeSession.working = { ...activeSession.original, isOriginal: true }
+  renderEditor()
+})
+elements.overlay.addEventListener('mousedown', (event) => { if (event.target === elements.overlay) closeEditor() })
+
+renderCards()
+</script>
+</body>
+</html>
