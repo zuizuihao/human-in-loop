@@ -1,24 +1,54 @@
-# zuizuihao.github.io
+# aitip.tech
 
-Sam Peng 的中英双语技术博客 · https://zuizuihao.github.io
+Sam Peng 的中英双语技术博客 · https://aitip.tech
 
-基于 [Hugo](https://gohugo.io/) + [PaperMod](https://github.com/adityatelange/hugo-PaperMod)，push 到 `main` 后由 GitHub Actions 自动部署。
+基于 [Hugo](https://gohugo.io/) + [PaperMod](https://github.com/adityatelange/hugo-PaperMod)，push 到 `main` 后由 GitHub Actions 构建并发布到 GitHub Pages，自定义域名 `aitip.tech`。
 
 ## 目录
 
 ```
-content/zh/   中文内容  → https://zuizuihao.github.io/
-content/en/   英文内容  → https://zuizuihao.github.io/en/
+content/zh/   中文内容  → https://aitip.tech/
+content/en/   英文内容  → https://aitip.tech/en/
 hugo.yaml     站点配置（菜单、多语言、主页介绍）
 themes/PaperMod  主题（git submodule）
+scripts/      本地构建 + 部署到 OSS 的脚本
 ```
 
 ## 本地预览
 
 ```bash
-git clone --recurse-submodules https://github.com/zuizuihao/zuizuihao.github.io.git
+git clone --recurse-submodules https://github.com/zuizuihao/aitip.github.io.git
 hugo server -D        # http://localhost:1313 ，-D 包含草稿
 ```
+
+## 部署（GitHub Pages）
+
+站点是纯静态产物，托管在 GitHub Pages，自定义域名 `aitip.tech`。
+
+- 仓库必须是 **public**（private 仓库需要 GitHub Pro 才能开 Pages）
+- `static/CNAME` 固定写入 `aitip.tech`，Hugo 会把它复制到 `public/`
+- `hugo.yaml` 的 `baseURL` 必须是 `https://aitip.tech/`
+- push 到 `main` 触发 [deploy.yml](.github/workflows/deploy.yml)：安装 Hugo → `hugo --minify` → 上传 artifact → 发布 Pages
+
+### 自定义域名解析（阿里云云解析）
+
+| 记录 | 类型 | 值 |
+|---|---|---|
+| `@` | A | `185.199.108.153`、`185.199.109.153`、`185.199.110.153`、`185.199.111.153` |
+| `@` | AAAA | `2606:50c0:8000::153`、`2606:50c0:8001::153`、`2606:50c0:8002::153`、`2606:50c0:8003::153` |
+| `www` | CNAME | `zuizuihao.github.io`（用户站点域名，不是仓库名） |
+
+首次部署后在仓库 Settings → Pages 确认 Custom domain 为 `aitip.tech` 并勾选 **Enforce HTTPS**。
+
+## 可选：迁移到阿里云 OSS（备案后）
+
+站点体量小、无后端，备案完成后可以迁到 OSS + CDN，大陆访问更快、单价比 Pages 友好：
+
+- 一次性初始化：[scripts/oss-setup.sh](scripts/oss-setup.sh)（建 Bucket、公共读、静态托管、防盗链）
+- 本地部署：[scripts/oss-deploy.sh](scripts/oss-deploy.sh)
+- CI 部署：[deploy-oss.yml](.github/workflows/deploy-oss.yml)（手动触发，需配置 `SITE_HOST` / `OSS_BUCKET` / `OSS_ENDPOINT` 变量与 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET` 密钥）
+
+> 大陆地域绑定自定义域名需要 ICP 备案；未备案只能用香港/海外地域。缓存策略：HTML 300 秒，其余资源 1 天。
 
 ## 首页视觉
 

@@ -1,0 +1,53 @@
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["oss:ListBuckets"],
+      "Resource": "acs:oss:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "oss:PutObject",
+        "oss:GetObject",
+        "oss:DeleteObject",
+        "oss:ListObjects",
+        "oss:AbortMultipartUpload",
+        "oss:ListParts",
+        "oss:GetBucketInfo",
+        "oss:PutBucket",
+        "oss:PutBucketAcl",
+        "oss:GetBucketAcl",
+        "oss:PutBucketWebsite",
+        "oss:GetBucketWebsite",
+        "oss:PutBucketReferer",
+        "oss:GetBucketReferer"
+      ],
+      "Resource": [
+        "acs:oss:*:*:aitip-tech",
+        "acs:oss:*:*:aitip-tech/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["domain:QueryDomainList", "domain:QueryDomain"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cdn:DescribeUserDomains",
+        "cdn:DescribeDomainDetail",
+        "cdn:DescribeCdnDomainDetail",
+        "cdn:RefreshObjectCaches"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["dns:DescribeDomains", "dns:DescribeDomainRecords"],
+      "Resource": "*"
+    }
+  ]
+}
