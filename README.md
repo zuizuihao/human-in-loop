@@ -17,7 +17,7 @@ scripts/      本地构建 + 部署到 OSS 的脚本
 ## 本地预览
 
 ```bash
-git clone --recurse-submodules https://github.com/zuizuihao/aitip.github.io.git
+git clone --recurse-submodules https://github.com/zuizuihao/human-in-loop.git
 hugo server -D        # http://localhost:1313 ，-D 包含草稿
 ```
 
